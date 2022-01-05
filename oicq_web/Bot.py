@@ -2,8 +2,6 @@
 
 import asyncio
 import aiohttp
-from websockets.legacy.client import connect as ws_connect, WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from asyncio import CancelledError
 
 
@@ -13,7 +11,7 @@ class Bot:
     """
     # will be valid only inside async context
     _ahttp: aiohttp.ClientSession
-    _aws: WebSocketClientProtocol
+    _aws: aiohttp.client.ClientWebSocketResponse
     _main_task: asyncio.Task
 
     def __init__(self, addr: str = '127.0.0.1', port: int = 8888):
@@ -39,6 +37,7 @@ class Bot:
         self._main_task = self._async_loop.create_task(self._run(), name='main task')
         print('main task emitted')
         ret = self._async_loop.run_until_complete(self._main_task)
+        # find sub-tasks that are still running
         curr_tasks = asyncio.Task.all_tasks(loop=self._async_loop)
         curr_tasks = [x for x in curr_tasks if not x.done()]
         print('main task exited. wait for {d} of sub-tasks to complete'.format(d=len(curr_tasks)))
@@ -49,6 +48,7 @@ class Bot:
     def request_stop(self):
         """
         Notify the main task to exit
+        Currently it won't exit immediately. I don't know why. But never spends more than 15s
         :return:
         """
         # schedule stop
@@ -71,38 +71,38 @@ class Bot:
     # do ws connection-oriented maintenance
     async def _run_loop(self):
         # async connect
-        self._aws = await ws_connect('ws://{remote_addr}:{remote_port}'.format(
+        self._aws = await self._ahttp.ws_connect('ws://{remote_addr}:{remote_port}'.format(
             remote_addr=self.api_addr,
             remote_port=self.api_port))
         print('WebSocket connection established')
 
         while True:
             try:
-                data = await self._aws.recv()
-                # async serve received data
-                self._async_loop.create_task(self._deal_ws_packets(data))
-            except ConnectionClosedOK:
-                print('WebSocket connection closed')
-                return
-            except ConnectionClosedError:
-                while True:
-                    try:
-                        print('connection error. delay 10s before reconnecting')
-                        await asyncio.sleep(10)
-                        self._aws = await ws_connect('ws://{remote_addr}:{remote_port}'.format(
-                            remote_addr=self.api_addr,
-                            remote_port=self.api_port))
-                        # if no more exception happen, then it is connected
-                        print('successfully reconnected')
-                        break
-                    except CancelledError:
-                        print('reconnecting canceled')
-                        return
-                    except Exception:
-                        # ignore all exceptions
-                        pass
+                msg = await self._aws.receive()
+                if msg.type == aiohttp.WSMsgType.error:
+                    print(msg)
+                    # TODO: should we do something here?
+                elif msg.type == aiohttp.WSMsgType.closed:
+                    del self._aws
+                    while True:
+                        try:
+                            print('WebSocket disconnected. wait 10s before reconnect')
+                            await asyncio.sleep(10)
+                            self._aws = await self._ahttp.ws_connect('ws://{remote_addr}:{remote_port}'.format(
+                                remote_addr=self.api_addr,
+                                remote_port=self.api_port))
+                            # no more exception means successfully connected
+                            print('successfully reconnected')
+                            break
+                        except CancelledError:
+                            print('reconnecting canceled')
+                            return
+                        except Exception as e:
+                            print(e)
+                elif msg.type == aiohttp.WSMsgType.text:
+                    self._async_loop.create_task(self._deal_ws_packets(msg.data))
             except CancelledError:
-                print('main task stopped')
+                print('main task canceled')
                 await self._aws.close()
                 return
 
@@ -124,3 +124,5 @@ class Bot:
     # launched in separate tasks in parallel
     async def _deal_ws_packets(self, data):
         print(data)
+        await asyncio.sleep(5)
+        print('subtask exit')

@@ -4,7 +4,6 @@ from context import oicq_web
 from oicq_web import Bot
 
 import signal
-import sys
 
 bot = Bot()
 
