@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import typing
 import asyncio
 import aiohttp
 from asyncio import CancelledError
+import ujson
+
+from .Message import ReceivedMessage
 
 
 class Bot:
@@ -14,9 +18,14 @@ class Bot:
     _aws: aiohttp.client.ClientWebSocketResponse
     _main_task: asyncio.Task
 
+    # registered callbacks
+    _on_private_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
+    _on_group_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
+
     def __init__(self, addr: str = '127.0.0.1', port: int = 8888):
         """
         Create a bot client object
+
         :param addr: WebAPI server address
         :param port: WebAPI server port
         """
@@ -48,10 +57,13 @@ class Bot:
     def request_stop(self):
         """
         Notify the main task to exit
-        Currently it won't exit immediately. I don't know why. But never spends more than 15s
+
         :return:
         """
         # schedule stop
+        self._async_loop.call_soon_threadsafe(self.__request_stop_cb)
+
+    def __request_stop_cb(self):
         self._main_task.cancel()
 
     async def _run(self):
@@ -83,6 +95,7 @@ class Bot:
                     print(msg)
                     # TODO: should we do something here?
                 elif msg.type == aiohttp.WSMsgType.closed:
+                    print(self._aws.exception())
                     del self._aws
                     while True:
                         try:
@@ -123,6 +136,45 @@ class Bot:
 
     # launched in separate tasks in parallel
     async def _deal_ws_packets(self, data):
-        print(data)
-        await asyncio.sleep(5)
-        print('subtask exit')
+        try:
+            json_data = ujson.loads(data)
+            if json_data['type'] == 'msg':
+                msg_data = json_data['data']
+                msg = ReceivedMessage._deserialize(msg_data)
+                if msg_data['type'] == 'private':
+                    if self._on_private_msg is not None:
+                        await self._on_private_msg(msg)
+                elif msg_data['type'] == 'group':
+                    if self._on_group_msg is not None:
+                        await self._on_group_msg(msg)
+                else:
+                    print('warning: unsupported sub-type: {base}.{sub}'.format(
+                        base=json_data['type'],
+                        sub=msg_data['type']
+                    ))
+            elif json_data['type'] == 'revoke':
+                pass
+            elif json_data['type'] == 'user':
+                pass
+            elif json_data['type'] == 'group':
+                pass
+            else:
+                print('warning: unsupported type {type}'.format(type=json_data['type']))
+        except Exception as e:
+            print(e)
+
+    def on_private_message(self, deco):
+        """
+        Register message callback for private channel
+        """
+        if self._on_private_msg is not None:
+            print('warning: overwrite on_private_msg')
+        self._on_private_msg = deco
+
+    def on_group_message(self, deco):
+        """
+        Register message callback for group channel
+        """
+        if self._on_group_msg is not None:
+            print('warning: overwrite on_group_msg')
+        self._on_group_msg = deco
