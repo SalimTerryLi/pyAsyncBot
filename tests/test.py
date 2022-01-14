@@ -3,10 +3,14 @@
 from context import oicq_web
 
 
-from oicq_web import Bot
+from oicq_web import Bot, BotConfig
 import signal
 
-bot = Bot()
+bot = Bot(BotConfig(
+    bot_protocol='MyBotProtocol',
+    http_setting=BotConfig.HTTPClientSetting('127.0.0.1', 8888),
+    ws_setting=BotConfig.WebSocketClientSetting('127.0.0.1', 8888)
+))
 
 
 # setup exit notification

@@ -54,6 +54,24 @@ class RepliedMessage:
                 ret._to = GroupAnonymousMember(data['reply']['to'], data['channel'])
         return ret
 
+    def get_msgid(self):
+        """
+        Advanced: Get the message id of the message being replied
+
+        :return: msgid
+        """
+        return self._id
+
+    async def get_original_msg(self) -> Union[ReceivedMessage, None]:
+        """
+        Get the original message this one is replied to.
+
+        May fail due to the replied message is flushed out of chat history, or it is a constructed one
+
+        :return: content or None
+        """
+        pass
+
 
 class ReceivedMessage:
     """
@@ -61,13 +79,16 @@ class ReceivedMessage:
     """
 
     def __init__(self):
-        self._sender: Union[Friend, GroupMember] = None
+        self._time: datetime.datetime = None
+        self._channel: Channel = None
+        self._sender: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
         self._msgID: str = None
         self._msgContent: MessageContent = None
         self._reply: RepliedMessage = None
 
     def __str__(self):
         return dumps({
+            'time': self._time,
             'sender': str(self._sender),
             'msgID': self._msgID,
             'msgContent': str(self._msgContent),
@@ -93,7 +114,17 @@ class ReceivedMessage:
             ret._reply = RepliedMessage._parse_from_dict(data)
         return ret
 
-    def get_sender(self) -> Union[Friend, GroupMember]:
+    def get_channel(self) -> Channel:
+        """
+        Get the channel this message comes from
+
+        May be the same as get_sender() if it is a private message
+
+        :return: channel obj
+        """
+        return self._channel
+
+    def get_sender(self) -> Union[Friend, Stranger, GroupMember, GroupAnonymousMember]:
         """
         Get the sender of this message, either a friend or someone from a group
 
@@ -111,51 +142,28 @@ class ReceivedMessage:
 
     def get_msg_id(self) -> str:
         """
-        Advanced: to get message ID
+        Advanced: get message ID
 
         :return: message id as string
         """
         return self._msgID
 
-    def is_reply_msg(self) -> bool:
+    def get_replied(self) -> Union[RepliedMessage, None]:
         """
-        Check if this message did reply to previous one
+        Get the replied message obj. None if not exist
 
-        :return: boolean yes or no
+        :return: replied message obj
         """
-        return self._reply is None
+        return self._reply
 
-    def get_replied_msgid(self):
-        """
-        Advanced: Get the message id of replied message
-
-        :return: msgid
-        """
-        if not self._reply is None:
-            return self._reply._id
-        else:
-            return None
-
-    async def get_replied_msg(self) -> Union[ReceivedMessage, None]:
-        """
-        Get the original message this one is replied to.
-        May fail due to the replied message is flushed out of chat history cache
-
-        :return: content or None
-        """
-        if not self._reply is None:
-            pass
-        else:
-            return None
-
-    async def reply(self, content: MessageContent) -> Union[str, None]:
+    async def reply(self, content: MessageContent) -> SentMessage:
         """
         Reply to the channel which this message comes from
 
         :param content: message content
-        :return: msgID of reply msg or None if failed
+        :return: sent msg obj or None if failed
         """
-        pass
+        return await self._channel.send_msg(content)
 
     async def quoted_reply(self, content: MessageContent) -> Union[str, None]:
         """
@@ -163,5 +171,67 @@ class ReceivedMessage:
 
         :param content: message content
         :return: msgID of reply msg or None if failed
+        """
+        pass
+
+
+class SentMessage:
+    """
+    A message that is sent by us
+    """
+    _msgid: str
+    _channel: Channel
+
+    def __init__(self):
+        self._msgid = None
+        self._channel = None
+
+    async def revoke(self) -> bool:
+        return await self._channel.revoke_msg(self._msgid)
+
+
+class RevokedMessage:
+    """
+    Revoked Message
+    """
+
+    def __init(self):
+        self._time: datetime.datetime = None
+        self._msgid: str = None
+        self._channel: Channel = None
+        self._revoker: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
+        self._revokee: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
+
+    def get_channel(self) -> Channel:
+        """
+        Get the channel this message comes from
+
+        :return: channel obj
+        """
+        return self._channel
+
+    def get_revoker(self) -> User:
+        """
+        Get the one who revoked the message
+
+        :return: user object
+        """
+        return self._revoker
+
+    def get_revokee(self) -> User:
+        """
+        Get the one whose message was revoked
+
+        :return: user object
+        """
+        return self._revoker
+
+    async def get_remoked_msg(self) -> ReceivedMessage:
+        """
+        Get the original message which was revoked
+
+        May fail due to the replied message is flushed out of chat history
+
+        :return: message object
         """
         pass
