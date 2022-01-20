@@ -3,3 +3,6 @@
 __pycache__
 
 /.idea
+
+/oicq_web.egg-info
+
