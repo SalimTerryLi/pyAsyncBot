@@ -18,14 +18,18 @@ class HTTPClient(CommunicationBackend):
     """
     _ahttp: aiohttp.ClientSession
 
+    _api: HTTPClientAPI
+
     def __init__(self, remote_addr: str, remote_port: int):
         self._addr = remote_addr
         self._port = remote_port
         self._ahttp = None
+        self._api = None
         print('new http client created')
 
     async def setup(self, ev_loop: AbstractEventLoop) -> bool:
         self._ahttp = aiohttp.ClientSession(loop=ev_loop)
+        self._api = HTTPClientAPI(self)
         return True
 
     async def cleanup(self, ev_loop: AbstractEventLoop):
@@ -41,34 +45,24 @@ class HTTPClient(CommunicationBackend):
             print(e)
             return None
 
-    async def send_message(self, data: typing.Any) -> typing.Any:
-        res = None
-        path = ''
-        if 'path' in data:
-            path = data['path']
-        content_type = 'application/json'
-        if 'content-type' in data:
-            content_type = data['content-type']
-        params = None
-        if 'params' in data:
-            params = data['params']
-        body_data = None
-        if 'data' in data:
-            body_data = data['data']
-        if data['method'] == 'GET':
-            res = await self._ahttp.get('http://{addr}:{port}/{path}'.format(
-                addr=self._addr,
-                port=self._port,
+    def get_http_client(self):
+        """
+        Call this function to get a reference of aiohttp client obj
+
+        :return:
+        """
+        return self._api
+
+
+class HTTPClientAPI:
+    __base: HTTPClient
+
+    def __init__(self, base: HTTPClient):
+        self.__base = base
+
+    async def get(self, path: str, allow_redirects: bool = True, **kwargs: typing.Any) -> aiohttp.ClientResponse:
+        return await self.__base._ahttp.get('http://{addr}:{port}{path}'.format(
+                addr=self.__base._addr,
+                port=self.__base._port,
                 path=path,
-            ), params=params, headers={'content-type': content_type}, data=body_data)
-        elif data['method'] == 'POST':
-            res = await self._ahttp.post('http://{addr}:{port}/{path}'.format(
-                addr=self._addr,
-                port=self._port,
-                path=data['path'],
-            ), params=params, headers={'content-type': content_type}, data=body_data)
-        return {
-            'code': res.status,
-            'content-type': res.headers['content-type'],
-            'data': await res.read()
-        }
+            ), allow_redirects=allow_redirects, **kwargs)

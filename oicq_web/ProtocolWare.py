@@ -86,12 +86,10 @@ class ProtocolWare:
     async def run(self, ev_loop: AbstractEventLoop):
         for comm in self._commus:
             self._commu_tasks.append(ev_loop.create_task(
-                self._commus[comm].await_message(
-                    ev_loop, self._protocol.process_incoming_data, comm
-                ),
+                self._commus[comm].run_daemon(ev_loop),
                 name='{comm}_listen'.format(comm=comm)
             ))
-        if not await self._protocol.setup():
+        if not await self._protocol.setup(self._commus):
             self.request_stop()
             return
         if not await self._protocol.probe():
@@ -103,10 +101,3 @@ class ProtocolWare:
     def request_stop(self):
         for task in self._commu_tasks:
             task.cancel()
-
-    async def _deliver_data_to_backend(self, data: typing.Dict[str, typing.Any]):
-        for key in data:
-            if key in self._commus:
-                return await self._commus[key].send_message(data[key])
-            else:
-                raise Exception('no communication backend found: ' + key)

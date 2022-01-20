@@ -19,10 +19,14 @@ class WebSocketClient(CommunicationBackend):
     _http_base: HTTPClient
     _http_base_managed: bool
 
+    _on_text_cb: typing.Callable[[str], None]
+    _on_bin_cb: typing.Callable[[bytes], None]
+
     def __init__(self):
         self._http_base = None
         self._http_base_managed = None
         self._aws = None
+        self._on_text_cb = None
 
     @classmethod
     def from_http_client(cls, http_client: HTTPClient):
@@ -57,7 +61,7 @@ class WebSocketClient(CommunicationBackend):
         if self._http_base_managed:
             await self._http_base.cleanup(ev_loop)
 
-    async def await_message(self, ev_loop: asyncio.AbstractEventLoop, callback: typing.Callable[[typing.Any],None], tag: str):
+    async def run_daemon(self, ev_loop: asyncio.AbstractEventLoop):
         while True:
             try:
                 msg = await self._aws.receive()
@@ -80,23 +84,45 @@ class WebSocketClient(CommunicationBackend):
                         except Exception as e:
                             print(e)
                 elif msg.type == aiohttp.WSMsgType.text:
-                    callback({tag: {'type': 'text', 'data': msg.data}})
+                    if self._on_text_cb is not None:
+                        self._on_text_cb(msg.data)
                 elif msg.type == aiohttp.WSMsgType.binary:
-                    callback({tag: {'type': 'binary', 'data': msg.data}})
+                    if self._on_bin_cb is not None:
+                        self._on_bin_cb(msg.data)
             except asyncio.CancelledError:
                 print('WebSocket client stopped')
                 await self._aws.close()
                 return
 
-    async def send_message(self, data: typing.Any) -> typing.Any:
+    def register_text_message_callback(self, callback: typing.Callable[[str], None]):
+        """
+        Call this function to register a text message callback
+
+        :param callback: callback function
+        :return:
+        """
+        self._on_text_cb = callback
+
+    def register_binary_message_callback(self, callback: typing.Callable[[bytes], None]):
+        """
+        Call this function to register a binary message callback
+
+        :param callback: callback function
+        :return:
+        """
+        self._on_bin_cb = callback
+
+    async def send_text_message(self, data: typing.Any) -> typing.Any:
         try:
-            if data['type'] == 'binary':
-                await self._aws.send_bytes(data['data'])
-            elif data['type'] == 'text':
-                await self._aws.send_str(data['data'])
-            else:
-                print('ws client unsupported data format: ' + data['type'])
-                return False
+            await self._aws.send_str(data['data'])
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    async def send_binary_message(self, data: typing.Any) -> typing.Any:
+        try:
+            await self._aws.send_bytes(data['data'])
             return True
         except Exception as e:
             print(e)

@@ -15,22 +15,12 @@ class CommunicationBackend:
     async def cleanup(self, ev_loop: AbstractEventLoop):
         return
 
-    async def await_message(self, ev_loop: AbstractEventLoop, callback: typing.Callable[[typing.Any],None], tag: str):
+    async def run_daemon(self, ev_loop: AbstractEventLoop):
         """
         Get called when the underlie backend should poll and wait for remote push message
 
         Should not return until received exit signal (such as the canceled exception)
 
         :param ev_loop: event loop passed from upper call
-        :param callback: deliver the received message to bot protocol using callback
-        :param tag: mark the message source in multi-communication case
         """
         return
-
-    async def send_message(self, data: typing.Any) -> typing.Any:
-        """
-        Get called when bot try to send something though this backend
-
-        :param data: data
-        :return: depends
-        """
