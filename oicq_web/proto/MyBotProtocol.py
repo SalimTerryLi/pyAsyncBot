@@ -28,7 +28,7 @@ class MyBotProtocol(Protocol):
 
     async def setup(self, commu: typing.Dict[str, typing.Any]):
         self._http_hdl = commu['http_client'].get_http_client()
-        commu['ws_client'].register_text_message_callback(self.process_incoming_data)
+        commu['ws_client'].register_text_message_callback(self.process_incoming_ws_data)
         return True
 
     async def cleanup(self):
@@ -44,38 +44,13 @@ class MyBotProtocol(Protocol):
                 return True
         return False
 
-    def process_incoming_data(self, data: str):
-        print(data)
-        self.create_task(self.test(), 'test')
-
-    async def test(self):
-        await asyncio.sleep(5)
-
-    # launched in separate tasks in parallel
-    async def _deal_ws_packets(self, data):
+    def process_incoming_ws_data(self, data: str):
         try:
-            json_data = ujson.loads(data)
-            if json_data['type'] == 'msg':
-                msg_data = json_data['data']
-                msg = ReceivedMessage._deserialize(msg_data)
-                if msg_data['type'] == 'private':
-                    if self._on_private_msg is not None:
-                        await self._on_private_msg(msg)
-                elif msg_data['type'] == 'group':
-                    if self._on_group_msg is not None:
-                        await self._on_group_msg(msg)
-                else:
-                    print('warning: unsupported sub-type: {base}.{sub}'.format(
-                        base=json_data['type'],
-                        sub=msg_data['type']
-                    ))
-            elif json_data['type'] == 'revoke':
-                pass
-            elif json_data['type'] == 'user':
-                pass
-            elif json_data['type'] == 'group':
-                pass
-            else:
-                print('warning: unsupported type {type}'.format(type=json_data['type']))
-        except Exception as e:
+            msg_dict = ujson.loads(data)
+            if msg_dict['type'] == 'msg':
+                self.create_task(self.parse_msg(msg_dict['data']), 'msg_worker')
+        except ValueError as e:
             print(e)
+
+    async def parse_msg(self, msgdata: dict):
+        pass

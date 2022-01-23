@@ -58,7 +58,7 @@ class Protocol:
         """
         pass
 
-    def create_task(self, coro: typing.Callable[[], typing.Awaitable], name: str):
+    def create_task(self, coro: typing.Awaitable, name: str):
         """
         Call this to start a new task with given co-routine
 
