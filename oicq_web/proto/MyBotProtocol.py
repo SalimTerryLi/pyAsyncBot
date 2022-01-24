@@ -77,7 +77,7 @@ class MyBotProtocol(Protocol):
                 group_id=msgdata['channel'],
                 msgid=msgdata['msgID'],
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
-                is_anonymous=msgdata['known'],
+                is_anonymous=not msgdata['known'],
                 reply=reply
             )
         else:
