@@ -26,33 +26,7 @@ class RepliedMessage:
             'time': str(self._time),
             'summary': self._text,
             'msgID': self._id
-        })
-
-    def _gen_json_dict(self):
-        return {
-            'to': self._to.get_id(),
-            'time': int(self._time.timestamp()),
-            'summary': self._text,
-            'id': self._id
-        }
-
-    @classmethod
-    def _parse_from_dict(cls, data):
-        ret = RepliedMessage()
-        ret._id = data['reply']['id']
-        ret._text = data['reply']['summary']
-        ret._time = datetime.datetime.fromtimestamp(data['reply']['time'])
-        if data['type'] == 'private':
-            if data['known']:
-                ret._to = Friend(data['reply']['to'])
-            else:
-                ret._to = Stranger(data['reply']['to'], data['channel'])
-        elif data['type'] == 'group':
-            if data['known']:
-                ret._to = GroupMember(data['reply']['to'], data['channel'])
-            else:
-                ret._to = GroupAnonymousMember(data['reply']['to'], data['channel'])
-        return ret
+        }, ensure_ascii=False)
 
     def get_msgid(self):
         """

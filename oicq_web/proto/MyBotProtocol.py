@@ -103,4 +103,9 @@ class MyBotProtocol(Protocol):
 
     @staticmethod
     def parse_reply_content(reply_msg: dict) -> RepliedMessage:
-        pass
+        ret = RepliedMessage()
+        ret._to = reply_msg['to']
+        ret._time = datetime.datetime.fromtimestamp(reply_msg['time'])
+        ret._text = reply_msg['summary']
+        ret._id = reply_msg['id']
+        return ret
