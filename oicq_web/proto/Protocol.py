@@ -3,16 +3,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..ProtocolWare import ProtocolWare
+    from ..BotWare import BotWare
     from ..commu.CommunicationBackend import CommunicationBackend
+    from ..Message import GroupedSegment
 
 import typing
 
 
 class Protocol:
     _protocolware: ProtocolWare
+    _botware: BotWare
 
     def __init__(self, protocolware: ProtocolWare):
         self._protocolware = protocolware
+        self._botware = protocolware._botware
 
     @staticmethod
     def required_communication() -> typing.List[str]:
@@ -55,6 +59,15 @@ class Protocol:
         Override this one to do testing and detection if required by protocol design
 
         :return: True if probed successfully, otherwise false
+        """
+        pass
+
+    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
+        """
+        Override this function to implement content querying of packed message
+
+        :param id: packed msgid
+        :return: context-free message obj
         """
         pass
 

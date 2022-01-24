@@ -41,21 +41,13 @@ class TextSegment(MessageSegment):
             return ret
         raise Exception('Empty string')
 
-    def _gen_json_dict(self):
-        if self._text == '':
-            raise Exception('Empty string')
-        return {
-            'type': 'text',
-            'text': self._text
-        }
+    def get_text(self) -> str:
+        """
+        Get the stored text content
 
-    @classmethod
-    def _parse_from_dict(cls, obj):
-        if 'text' in obj:
-            ret = TextSegment()
-            ret._text = obj['text']
-            return ret
-        return None
+        :return: text str
+        """
+        return self._text
 
     def __str__(self):
         return self._text
@@ -112,28 +104,6 @@ class ImageSegment(MessageSegment):
         ret._url = url
         return ret
 
-    def _gen_json_dict(self):
-        if self._base64 != '':
-            return {
-                'type': 'image',
-                'base64': self._base64
-            }
-        elif self._url != '':
-            return {
-                'type': 'image',
-                'url': self._url
-            }
-        else:
-            raise Exception('Empty image')
-
-    @classmethod
-    def _parse_from_dict(cls, obj):
-        if 'url' in obj:
-            ret = ImageSegment()
-            ret._url = obj['url']
-            return ret
-        return None
-
     def __str__(self):
         return '[IMAGE:...]'
 
@@ -150,28 +120,17 @@ class EmojiSegment(MessageSegment):
         self._replacement = None
 
     @classmethod
-    def from_id(cls, eid: int):
+    def from_id(cls, eid: int, hint: str = ''):
         """
         Create an emoji from given id
 
+        :param hint: describe the emoji
         :param eid: emoji id
         :return: a text segment
         """
         ret = EmojiSegment()
         ret._id = eid
-        return ret
-
-    def _gen_json_dict(self):
-        return {
-            'type': 'emoji',
-            'id': self._id
-        }
-
-    @classmethod
-    def _parse_from_dict(cls, obj):
-        ret = EmojiSegment()
-        ret._id = obj['id']
-        ret._replacement = obj['replaceText']
+        ret._replacement = hint
         return ret
 
     def __str__(self):
@@ -190,28 +149,17 @@ class MentionSegment(MessageSegment):
         self._replacement = None
 
     @classmethod
-    def from_id(cls, uid: int):
+    def from_id(cls, uid: int, display_text: str = ''):
         """
         Create a mention from given uid
 
+        :param display_text: the displayed text
         :param uid: user id
         :return: a text segment
         """
         ret = MentionSegment()
         ret._target = uid
-        return ret
-
-    def _gen_json_dict(self):
-        return {
-            'type': 'mention',
-            'target': self._target
-        }
-
-    @classmethod
-    def _parse_from_dict(cls, obj):
-        ret = MentionSegment()
-        ret._target = obj['target']
-        ret._replacement = obj['displayText']
+        ret._replacement = display_text
         return ret
 
     def __str__(self):
@@ -271,55 +219,21 @@ class GroupedSegment(MessageSegment):
         """
         pass
 
-    def _gen_json_dict(self):
-        return {
-            'type': 'forwarded',
-            'text': self._grouped_msg_id
-        }
-
-    @classmethod
-    def _parse_from_dict(cls, obj):
-        if 'text' in obj:
-            ret = GroupedSegment()
-            ret._grouped_msg_id = obj['id']
-            return ret
-        return None
-
     def __str__(self):
         return '[Grouped:{id}]'.format(id=self._grouped_msg_id)
 
 
 class MessageContent:
     """
-
+    Context-free message container
     """
     _msgs: List[MessageSegment]
 
     def __init__(self):
         self._msgs = []
 
-    def _gen_json_dict(self):
-        json_msgs = []
-        for msg in self._msgs:
-            json_msgs.append(msg._gen_json_dict())
-        return json_msgs
-
-    @classmethod
-    def _parse_from_dict(cls, objs: list):
-        ret = MessageContent()
-        for obj in objs:
-            if 'type' in obj:
-                if obj['type'] == 'text':
-                    ret._msgs.append(TextSegment._parse_from_dict(obj))
-                elif obj['type'] == 'image':
-                    ret._msgs.append(ImageSegment._parse_from_dict(obj))
-                elif obj['type'] == 'emoji':
-                    ret._msgs.append(EmojiSegment._parse_from_dict(obj))
-                elif obj['type'] == 'mention':
-                    ret._msgs.append(MentionSegment._parse_from_dict(obj))
-                else:
-                    print('Unsupported msg type: {type}'.format(type=obj['type']))
-        return ret
+    def append_segment(self, seg: MessageSegment):
+        self._msgs.append(seg)
 
     def __str__(self):
         result = ""

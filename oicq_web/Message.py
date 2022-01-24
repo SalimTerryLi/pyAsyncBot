@@ -88,31 +88,12 @@ class ReceivedMessage:
 
     def __str__(self):
         return dumps({
-            'time': self._time,
+            'time': str(self._time),
             'sender': str(self._sender),
             'msgID': self._msgID,
             'msgContent': str(self._msgContent),
             'reply_to': str(self._reply),
-        })
-
-    @classmethod
-    def _deserialize(cls, data):
-        ret = cls()
-        if data['type'] == 'private':
-            if data['known']:
-                ret._sender = Friend(data['sender'])
-            else:
-                ret._sender = Stranger(data['sender'], data['channel'])
-        elif data['type'] == 'group':
-            if data['known']:
-                ret._sender = GroupMember(data['sender'], data['channel'])
-            else:
-                ret._sender = GroupAnonymousMember(data['sender'], data['channel'])
-        ret._msgID = data['msgID']
-        ret._msgContent = MessageContent._parse_from_dict(data['msgContent'])
-        if 'reply' in data:
-            ret._reply = RepliedMessage._parse_from_dict(data)
-        return ret
+        }, ensure_ascii=False)
 
     def get_channel(self) -> Channel:
         """

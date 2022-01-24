@@ -39,7 +39,7 @@ class Friend(User):
         return dumps({
             'type': 'Friend',
             'id': self.get_id(),
-        })
+        }, ensure_ascii=False)
 
 
 class Stranger(User):
@@ -52,7 +52,7 @@ class Stranger(User):
             'type': 'Stranger',
             'id': self.get_id(),
             'from_group_id': self._gid
-        })
+        }, ensure_ascii=False)
 
 
 class GroupMember(User):
@@ -65,7 +65,7 @@ class GroupMember(User):
             'type': 'GroupMember',
             'group_id': self._gid,
             'sender_id': self.get_id(),
-        })
+        }, ensure_ascii=False)
 
 
 class GroupAnonymousMember(User):
@@ -78,7 +78,7 @@ class GroupAnonymousMember(User):
             'type': 'GroupAnonymousMember',
             'group_id': self._gid,
             'anonymous_id': self.get_id(),
-        })
+        }, ensure_ascii=False)
 
 
 class Group(Channel):

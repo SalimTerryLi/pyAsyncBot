@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from typing import TYPE_CHECKING
+import datetime
 
 from ..ProtocolWare import ProtocolWare
 from ..commu.http import HTTPClientAPI
+from ..Message import MessageContent, RepliedMessage, TextSegment, ImageSegment, EmojiSegment, MentionSegment, GroupedSegment
 
 import asyncio
 import typing
@@ -53,4 +54,53 @@ class MyBotProtocol(Protocol):
             print(e)
 
     async def parse_msg(self, msgdata: dict):
+        if msgdata['type'] == 'private':
+            reply: typing.Union[RepliedMessage, None] = None
+            if 'reply' in msgdata:
+                reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
+            await self._botware.deliver_private_msg(
+                time=datetime.datetime.fromtimestamp(msgdata['time']),
+                sender_id=msgdata['sender'],
+                msgid=msgdata['msgID'],
+                msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                is_friend=msgdata['known'],
+                from_channel=msgdata['channel'],
+                reply=reply
+            )
+        elif msgdata['type'] == 'group':
+            reply: typing.Union[RepliedMessage, None] = None
+            if 'reply' in msgdata:
+                reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
+            await self._botware.deliver_group_msg(
+                time=datetime.datetime.fromtimestamp(msgdata['time']),
+                sender_id=msgdata['sender'],
+                group_id=msgdata['channel'],
+                msgid=msgdata['msgID'],
+                msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                is_anonymous=msgdata['known'],
+                reply=reply
+            )
+        else:
+            print('unsupported msg.type: ' + msgdata['type'])
+
+    @staticmethod
+    def parse_msg_content(msg: list) -> MessageContent:
+        ret = MessageContent()
+        for seg in msg:
+            if seg['type'] == 'text':
+                ret.append_segment(TextSegment.from_text(seg['text']))
+            elif seg['type'] == 'image':
+                ret.append_segment(ImageSegment.from_url(seg['url']))
+            elif seg['type'] == 'emoji':
+                ret.append_segment(EmojiSegment.from_id(seg['id'], seg['replaceText']))
+            elif seg['type'] == 'mention':
+                ret.append_segment(MentionSegment.from_id(seg['target'], seg['displayText']))
+            elif seg['type'] == 'forwarded':
+                ret.append_segment(GroupedSegment.from_grouped_msg_id(seg['id']))
+            else:
+                print('unsupported msg segment: ' + seg['type'])
+        return ret
+
+    @staticmethod
+    def parse_reply_content(reply_msg: dict) -> RepliedMessage:
         pass

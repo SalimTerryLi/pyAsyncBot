@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 import typing
 from .Message import MessageContent, RepliedMessage, ReceivedMessage
-from .Contact import Friend, Stranger
+from .Contact import Friend, Stranger, GroupAnonymousMember, GroupMember, Group
 
 
 class BotWare:
@@ -64,4 +64,17 @@ class BotWare:
         :param is_anonymous: is sender anonymous
         :param reply: parsed reply info object
         """
-        pass
+        msg: ReceivedMessage = ReceivedMessage()
+        msg._time = time
+        msg._msgID = msgid
+        msg._msgContent = msgcontent
+        msg._reply = reply
+        if is_anonymous:
+            msg._channel = Group(group_id)
+            msg._sender = GroupAnonymousMember(sender_id, group_id)
+        else:
+            msg._channel = Group(group_id)
+            msg._sender = GroupMember(sender_id, group_id)
+
+        if self._bot._on_group_msg is not None:
+            await self._bot._on_group_msg(msg)
