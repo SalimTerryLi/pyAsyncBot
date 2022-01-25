@@ -75,9 +75,11 @@ class WebSocketClient(CommunicationBackend):
                             print('WebSocket disconnected. wait 10s before reconnect')
                             await asyncio.sleep(10)
                             self._aws = await self._http_base.upgrade_ws()
-                            # no more exception means successfully connected
-                            print('successfully reconnected')
-                            break
+                            if self._aws is None:
+                                print('retrying...')
+                            else:
+                                print('successfully reconnected')
+                                break
                         except asyncio.CancelledError:
                             print('reconnecting canceled')
                             return
