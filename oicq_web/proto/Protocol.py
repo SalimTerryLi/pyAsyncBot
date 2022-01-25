@@ -78,4 +78,4 @@ class Protocol:
         :param name: task name
         :param coro: task coroutine
         """
-        self._protocolware._bot._async_loop.create_task(coro, name=name)
+        self._protocolware._bot._create_bot_task(coro, name)

@@ -4,18 +4,19 @@ from asyncio import AbstractEventLoop
 
 
 class CommunicationBackend:
-    async def setup(self, ev_loop: AbstractEventLoop) -> bool:
+    async def setup(self) -> bool:
         """
         Get called when the underlie backend requires setup
 
+        :param ev_loop: event loop obj
         :return: whether succeed or not
         """
         return False
 
-    async def cleanup(self, ev_loop: AbstractEventLoop):
+    async def cleanup(self):
         return
 
-    async def run_daemon(self, ev_loop: AbstractEventLoop):
+    async def run_daemon(self):
         """
         Get called when the underlie backend should poll and wait for remote push message
 

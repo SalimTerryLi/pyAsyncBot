@@ -46,22 +46,22 @@ class WebSocketClient(CommunicationBackend):
         print('ws client use newly created http client')
         return ret
 
-    async def setup(self, ev_loop: asyncio.AbstractEventLoop) -> bool:
+    async def setup(self) -> bool:
         if self._http_base_managed:
-            await self._http_base.setup(ev_loop)
+            await self._http_base.setup()
         self._aws = await self._http_base.upgrade_ws()
         if self._aws is None:
             print('failed to create ws from http client')
             return False
         return True
 
-    async def cleanup(self, ev_loop: asyncio.AbstractEventLoop):
+    async def cleanup(self):
         if self._aws is not None:
             await self._aws.close()
         if self._http_base_managed:
-            await self._http_base.cleanup(ev_loop)
+            await self._http_base.cleanup()
 
-    async def run_daemon(self, ev_loop: asyncio.AbstractEventLoop):
+    async def run_daemon(self):
         while True:
             try:
                 msg = await self._aws.receive()

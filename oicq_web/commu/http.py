@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import asyncio
 import typing
 from asyncio import AbstractEventLoop
 import aiohttp
@@ -27,12 +28,12 @@ class HTTPClient(CommunicationBackend):
         self._api = None
         print('new http client created')
 
-    async def setup(self, ev_loop: AbstractEventLoop) -> bool:
-        self._ahttp = aiohttp.ClientSession(loop=ev_loop)
+    async def setup(self) -> bool:
+        self._ahttp = aiohttp.ClientSession(loop=asyncio.get_running_loop())
         self._api = HTTPClientAPI(self)
         return True
 
-    async def cleanup(self, ev_loop: AbstractEventLoop):
+    async def cleanup(self):
         await self._ahttp.close()
 
     async def upgrade_ws(self) -> aiohttp.client.ClientWebSocketResponse:

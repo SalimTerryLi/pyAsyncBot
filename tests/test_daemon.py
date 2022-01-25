@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import asyncio
 
 from context import oicq_web
 
@@ -30,6 +31,7 @@ async def on_private_message(msg):
 @bot.on_group_message
 async def on_group_message(msg):
     print(msg)
+    await asyncio.sleep(5)
 
 
-exit(bot.run())
+exit(bot.run_as_daemon())

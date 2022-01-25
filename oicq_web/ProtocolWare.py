@@ -64,30 +64,30 @@ class ProtocolWare:
                 backend=bot_conf.bot_protocol,
             ))
 
-    async def setup(self, ev_loop: AbstractEventLoop) -> bool:
+    async def setup(self) -> bool:
         if 'http_client' in self._commus:
-            if not await self._commus['http_client'].setup(ev_loop):
+            if not await self._commus['http_client'].setup():
                 print('failed to setup http_client')
                 return False
         if 'ws_client' in self._commus:
-            if not await self._commus['ws_client'].setup(ev_loop):
+            if not await self._commus['ws_client'].setup():
                 print('failed to setup ws_client')
                 return False
         return True
 
-    async def cleanup(self, ev_loop: AbstractEventLoop):
+    async def cleanup(self):
         if 'ws_client' in self._commus:
-            await self._commus['ws_client'].cleanup(ev_loop)
+            await self._commus['ws_client'].cleanup()
             del self._commus['ws_client']
         if 'http_client' in self._commus:
-            await self._commus['http_client'].cleanup(ev_loop)
+            await self._commus['http_client'].cleanup()
             del self._commus['http_client']
 
-    async def run(self, ev_loop: AbstractEventLoop):
+    async def run(self):
         for comm in self._commus:
-            self._commu_tasks.append(ev_loop.create_task(
-                self._commus[comm].run_daemon(ev_loop),
-                name='{comm}_listen'.format(comm=comm)
+            self._commu_tasks.append(self._bot._create_bot_task(
+                self._commus[comm].run_daemon(),
+                '{comm}_listen'.format(comm=comm)
             ))
         if not await self._protocol.setup(self._commus):
             self.request_stop()
