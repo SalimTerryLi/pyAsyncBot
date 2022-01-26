@@ -9,6 +9,7 @@ import asyncio
 from .Message import ReceivedMessage
 from .ProtocolWare import ProtocolWare
 from .BotConfig import BotConfig
+from .Contact import Contact
 
 
 class Bot:
@@ -24,6 +25,9 @@ class Bot:
     _on_private_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
     _on_group_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
 
+    # public members
+    contact: Contact
+
     def __init__(self, conf: BotConfig):
         """
         Create a bot client object
@@ -36,6 +40,7 @@ class Bot:
         self._protoware = ProtocolWare(conf, self)
         self._async_loop = None
         self.__task_set = set()
+        self.contact = Contact(self._protoware._protocol)
 
     def __del__(self):
         pass

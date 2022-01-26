@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .Message import MessageContent, SentMessage
+    from .proto.Protocol import Protocol
 
 from ujson import dumps
-from typing import Union
+from typing import Union, Dict
 
 
 class Channel:
@@ -91,3 +92,34 @@ class Group(Channel):
         elif type(other) == int:
             return self._gid == other
         return False
+
+
+class Contact:
+    _proto: Protocol
+    _friends: Dict[int, Friend]
+    _groups: Dict[int, Group]
+
+    def __init__(self, protocol: Protocol):
+        self._proto = protocol
+
+    def get_friend(self, id: int) -> Union[Friend, None]:
+        """
+        Query the friend object from given id
+
+        :param id: user id
+        :return: None if not found
+        """
+        if id in self._friends:
+            return self._friends[id]
+        return None
+
+    def get_group(self, id: int) -> Union[Group, None]:
+        """
+        Query the group object from given id
+
+        :param id: group id
+        :return: None if not found
+        """
+        if id in self._groups:
+            return self._groups[id]
+        return None

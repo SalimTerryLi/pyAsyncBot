@@ -11,6 +11,9 @@ import typing
 
 
 class Protocol:
+    """
+    Bot framework protocol layer.
+    """
     _protocolware: ProtocolWare
     _botware: BotWare
 
