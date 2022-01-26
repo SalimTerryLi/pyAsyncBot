@@ -14,6 +14,9 @@ from .Contact import Friend, Stranger, GroupAnonymousMember, GroupMember, Group
 
 
 class BotWare:
+    """
+    Serve as a plain flat interface for bot protocol, to update this framework in a simple fashion
+    """
     _bot: Bot
     _protoware: ProtocolWare
 
@@ -78,3 +81,47 @@ class BotWare:
 
         if self._bot._on_group_msg is not None:
             await self._bot._on_group_msg(msg)
+
+    async def remove_friend_from_contact(self, id: int):
+        """
+        Remove a friend from bot's contact storage
+
+        :param id: user id
+        """
+        if self._bot.contact._friends is None:
+            return None
+        if id in self._bot.contact._friends:
+            del self._bot.contact._friends[id]
+
+    async def add_friend_to_contact(self, id: int):
+        """
+        Add a friend to bot's contact storage
+
+        :param id: user id
+        """
+        # ignore those event if contact is not used
+        if self._bot.contact._friends is None:
+            return
+        self._bot.contact._friends[id] = Friend(id)
+
+    async def remove_group_from_contact(self, id: int):
+        """
+        Remove a group from bot's contact storage
+
+        :param id: group id
+        """
+        if self._bot.contact._groups is None:
+            return None
+        if id in self._bot.contact._groups:
+            del self._bot.contact._groups[id]
+
+    async def add_group_to_contact(self, id: int):
+        """
+        Add a group to bot's contact storage
+
+        :param id: group id
+        """
+        # ignore those event if contact is not used
+        if self._bot.contact._groups is None:
+            return
+        self._bot.contact._groups[id] = Group(id)

@@ -96,30 +96,41 @@ class Group(Channel):
 
 class Contact:
     _proto: Protocol
+    # lazy init of dicts
     _friends: Dict[int, Friend]
     _groups: Dict[int, Group]
 
     def __init__(self, protocol: Protocol):
         self._proto = protocol
+        self._friends = None
+        self._groups = None
 
-    def get_friend(self, id: int) -> Union[Friend, None]:
+    async def get_friend(self, id: int) -> Union[Friend, None]:
         """
         Query the friend object from given id
 
         :param id: user id
         :return: None if not found
         """
+        if self._friends is None:
+            self._friends = dict()
+            for uid in await self._proto.get_friend_list():
+                self._friends[uid] = Friend(uid)
         if id in self._friends:
             return self._friends[id]
         return None
 
-    def get_group(self, id: int) -> Union[Group, None]:
+    async def get_group(self, id: int) -> Union[Group, None]:
         """
         Query the group object from given id
 
         :param id: group id
         :return: None if not found
         """
+        if self._groups is None:
+            self._groups = dict()
+            for gid in await self._proto.get_group_list():
+                self._groups[gid] = Group(gid)
         if id in self._groups:
             return self._groups[id]
         return None

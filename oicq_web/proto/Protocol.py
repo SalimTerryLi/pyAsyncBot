@@ -13,6 +13,10 @@ import typing
 class Protocol:
     """
     Bot framework protocol layer.
+
+    Use self._botware to interate with bot framework
+
+    Implement those functions to provide corresponding functionalities, in the flat manner
     """
     _protocolware: ProtocolWare
     _botware: BotWare
@@ -65,6 +69,15 @@ class Protocol:
         """
         pass
 
+    def create_task(self, coro: typing.Awaitable, name: str):
+        """
+        Call this to start a new task with given co-routine
+
+        :param name: task name
+        :param coro: task coroutine
+        """
+        self._protocolware._bot._create_bot_task(coro, name)
+
     async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
         """
         Override this function to implement content querying of packed message
@@ -74,11 +87,18 @@ class Protocol:
         """
         pass
 
-    def create_task(self, coro: typing.Awaitable, name: str):
+    async def get_friend_list(self) -> typing.List[int]:
         """
-        Call this to start a new task with given co-routine
+        Override this function to provide friend list content. Normally not need to do cache here.
 
-        :param name: task name
-        :param coro: task coroutine
+        :return: a list of user ids
         """
-        self._protocolware._bot._create_bot_task(coro, name)
+        pass
+
+    async def get_group_list(self) -> typing.List[int]:
+        """
+        Override this function to provide group list content. Normally not need to do cache here.
+
+        :return: a list of group ids
+        """
+        pass
