@@ -102,3 +102,11 @@ class Protocol:
         :return: a list of group ids
         """
         pass
+
+    async def get_group_members(self, id: int) -> typing.List[int]:
+        """
+        Get the group member list
+
+        :param id: group id
+        """
+        pass

@@ -85,6 +85,7 @@ class GroupAnonymousMember(User):
 class Group(Channel):
     def __init__(self, gid: int):
         self._gid = gid
+        self._members: Dict[int, GroupMember] = None
 
     def __eq__(self, other):
         if type(other) == Group:
@@ -92,6 +93,16 @@ class Group(Channel):
         elif type(other) == int:
             return self._gid == other
         return False
+
+    async def get_member(self, id: int) -> GroupMember:
+        """
+        Get a group member obj from given id
+
+        :param id: user id
+        """
+        if self._members is None:
+            self._members = dict()
+            # TODO: ??????
 
 
 class Contact:

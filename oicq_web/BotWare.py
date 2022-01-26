@@ -24,6 +24,8 @@ class BotWare:
         self._bot = bot
         self._protoware = protoware
 
+    # Note here: for the following two cases, we always create new objects instead of finding one from contact
+
     async def deliver_private_msg(self, time: datetime.datetime, sender_id: int, msgid: str, msgcontent: MessageContent,
                                   is_friend: bool = True, from_channel: int = None,
                                   reply: RepliedMessage = None):
@@ -125,3 +127,35 @@ class BotWare:
         if self._bot.contact._groups is None:
             return
         self._bot.contact._groups[id] = Group(id)
+
+    async def add_member_to_group_members(self, uid: int, gid: int):
+        """
+        Add a member to the group's member list
+
+        :param uid: which user
+        :param gid: which group
+        """
+        # ignore those event if contact is not used
+        if self._bot.contact._groups is None:
+            return
+        if gid not in self._bot.contact._groups:
+            return
+        if self._bot.contact._groups[gid]._members is None:
+            return
+        self._bot.contact._groups[gid]._members[uid] = GroupMember(uid, gid)
+
+    async def remove_member_from_group_members(self, uid: int, gid: int):
+        """
+        Remove a member from the group's member list
+
+        :param uid: which user
+        :param gid: which group
+        """
+        # ignore those event if contact is not used
+        if self._bot.contact._groups is None:
+            return
+        if gid not in self._bot.contact._groups:
+            return
+        if self._bot.contact._groups[gid]._members is None:
+            return
+        del self._bot.contact._groups[gid]._members[uid]
