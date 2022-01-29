@@ -130,7 +130,7 @@ class Group(Channel):
         """
         if self._members is None:
             self._members = dict()
-            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(id)).items():
+            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
                 self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
         if id in self._members:
             return self._members[id]

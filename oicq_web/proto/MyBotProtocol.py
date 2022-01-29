@@ -130,7 +130,17 @@ class MyBotProtocol(Protocol):
 
         :return: a list of user ids
         """
-        pass
+        resp = await self._http_hdl.get('/user/getFriendList')
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                ret = dict()
+                for friend in data['list']:
+                    ret[friend['id']] = friend['nickname']
+                return ret
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getFriendList')
+        raise Exception('unexpected result from /user/getFriendList')
 
     async def get_group_list(self) -> typing.Dict[int, str]:
         """
@@ -138,7 +148,17 @@ class MyBotProtocol(Protocol):
 
         :return: a list of group ids
         """
-        pass
+        resp = await self._http_hdl.get('/user/getGroupList')
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                ret = dict()
+                for group in data['list']:
+                    ret[group['id']] = group['name']
+                return ret
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getGroupList')
+        raise Exception('unexpected result from /user/getGroupList')
 
     async def get_group_members(self, id: int) -> typing.Dict[int, str]:
         """
@@ -146,4 +166,17 @@ class MyBotProtocol(Protocol):
 
         :param id: group id
         """
-        pass
+        resp = await self._http_hdl.get('/group/getMemberList', params={'group': id})
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                ret = dict()
+                for member in data['list']:
+                    if member['alias'] == '':
+                        ret[member['id']] = member['nickname']
+                    else:
+                        ret[member['id']] = member['alias']
+                return ret
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getGroupList')
+        raise Exception('unexpected result from /user/getGroupList')

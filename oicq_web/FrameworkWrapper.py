@@ -82,7 +82,7 @@ class BotWrapper:
         msg._time = time
         msg._msgID = msgid
         msg._msgContent = msgcontent
-        msg._reply = RepliedMessage(self.__bot.get_contacts(), reply)
+        msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
         if is_anonymous:
             msg._channel = await self.__bot.get_contacts().get_group(group_id)
             msg._sender = GroupAnonymousMember(self.__bot.get_contacts(), sender_id, '', group_id)  # TODO: temporarily use empty nick

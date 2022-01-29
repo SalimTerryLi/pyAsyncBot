@@ -22,6 +22,8 @@ class RepliedMessage:
         self._ctx = ctx
 
     def __str__(self):
+        if self._content is None:
+            return str(None)
         return dumps({
             'user_id': str(self._content.to_uid),
             'time': str(self._content),
