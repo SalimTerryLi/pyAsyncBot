@@ -249,3 +249,11 @@ class RepliedMessageContent:
     time: datetime.datetime
     text: str
     to_msgid: str
+
+    def __str__(self):
+        return str({
+            'to': self.to_uid,
+            'msgid': self.to_msgid,
+            'time': str(self.time),
+            'text': self.text
+        })

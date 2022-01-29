@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
 import datetime
 from typing import Union
-from ujson import dumps
 
 from .MsgContent import *
 
@@ -24,12 +23,7 @@ class RepliedMessage:
     def __str__(self):
         if self._content is None:
             return str(None)
-        return dumps({
-            'user_id': str(self._content.to_uid),
-            'time': str(self._content),
-            'summary': self._content.text,
-            'msgID': self._content.to_msgid
-        }, ensure_ascii=False)
+        return str(self._content)
 
     def get_msgid(self):
         """
@@ -73,13 +67,13 @@ class ReceivedMessage:
         self._reply: RepliedMessage = None
 
     def __str__(self):
-        return dumps({
+        return str({
             'time': str(self._time),
             'sender': str(self._sender),
             'msgID': self._msgID,
             'msgContent': str(self._msgContent),
             'reply_to': str(self._reply),
-        }, ensure_ascii=False)
+        })
 
     def get_channel(self) -> Channel:
         """
