@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
-import datetime
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from ..ProtocolWare import ProtocolWare
-from ..commu.http import HTTPClientAPI
-from ..Message import MessageContent, RepliedMessage, TextSegment, ImageSegment, EmojiSegment, MentionSegment, GroupedSegment
+if TYPE_CHECKING:
+    pass
 
-import asyncio
-import typing
 import ujson
-import aiohttp
 
-from .Protocol import Protocol
+from ..commu.http import HTTPClientAPI
+from ..Message import *
+from .Protocol import Protocol, BotWrapper
 
 
 class MyBotProtocol(Protocol):
     _http_hdl: HTTPClientAPI
 
-    def __init__(self, protocolware: ProtocolWare):
-        super().__init__(protocolware)
+    def __init__(self, bot_wrapper: BotWrapper):
+        super().__init__(bot_wrapper)
         self._http_hdl = None
 
     @staticmethod
@@ -28,7 +27,7 @@ class MyBotProtocol(Protocol):
         ]
 
     async def setup(self, commu: typing.Dict[str, typing.Any]):
-        self._http_hdl = commu['http_client'].get_http_client()
+        self._http_hdl = commu['http_client']
         commu['ws_client'].register_text_message_callback(self.process_incoming_ws_data)
         return True
 
@@ -49,18 +48,19 @@ class MyBotProtocol(Protocol):
         try:
             msg_dict = ujson.loads(data)
             if msg_dict['type'] == 'msg':
-                self.create_task(self.parse_msg(msg_dict['data']), 'msg_worker')
+                self._bot_wrapper.create_task(self.parse_msg(msg_dict['data']), 'msg_worker')
         except ValueError as e:
             print(e)
 
     async def parse_msg(self, msgdata: dict):
         if msgdata['type'] == 'private':
-            reply: typing.Union[RepliedMessage, None] = None
+            reply: typing.Union[RepliedMessageContent, None] = None
             if 'reply' in msgdata:
                 reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
-            await self._botware.deliver_private_msg(
+            await self._bot_wrapper.deliver_private_msg(
                 time=datetime.datetime.fromtimestamp(msgdata['time']),
                 sender_id=msgdata['sender'],
+                sender_nick=msgdata['sender_nick'],
                 msgid=msgdata['msgID'],
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
                 is_friend=msgdata['known'],
@@ -68,13 +68,15 @@ class MyBotProtocol(Protocol):
                 reply=reply
             )
         elif msgdata['type'] == 'group':
-            reply: typing.Union[RepliedMessage, None] = None
+            reply: typing.Union[RepliedMessageContent, None] = None
             if 'reply' in msgdata:
                 reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
-            await self._botware.deliver_group_msg(
+            await self._bot_wrapper.deliver_group_msg(
                 time=datetime.datetime.fromtimestamp(msgdata['time']),
                 sender_id=msgdata['sender'],
+                sender_nick=msgdata['sender_nick'],
                 group_id=msgdata['channel'],
+                group_name=msgdata['channel_name'],
                 msgid=msgdata['msgID'],
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
                 is_anonymous=not msgdata['known'],
@@ -102,10 +104,46 @@ class MyBotProtocol(Protocol):
         return ret
 
     @staticmethod
-    def parse_reply_content(reply_msg: dict) -> RepliedMessage:
-        ret = RepliedMessage()
-        ret._to = reply_msg['to']
-        ret._time = datetime.datetime.fromtimestamp(reply_msg['time'])
-        ret._text = reply_msg['summary']
-        ret._id = reply_msg['id']
+    def parse_reply_content(reply_msg: dict) -> RepliedMessageContent:
+        ret = RepliedMessageContent(
+            to_uid=reply_msg['to'],
+            time=datetime.datetime.fromtimestamp(reply_msg['time']),
+            text=reply_msg['summary'],
+            to_msgid=reply_msg['id']
+        )
         return ret
+
+    # below are abstract interfaces from protocol wrapper
+
+    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
+        """
+        Override this function to implement content querying of packed message
+
+        :param id: packed msgid
+        :return: context-free message obj
+        """
+        pass
+
+    async def get_friend_list(self) -> typing.Dict[int, str]:
+        """
+        Override this function to provide friend list content. Normally not need to do cache here.
+
+        :return: a list of user ids
+        """
+        pass
+
+    async def get_group_list(self) -> typing.Dict[int, str]:
+        """
+        Override this function to provide group list content. Normally not need to do cache here.
+
+        :return: a list of group ids
+        """
+        pass
+
+    async def get_group_members(self, id: int) -> typing.Dict[int, str]:
+        """
+        Get the group member list
+
+        :param id: group id
+        """
+        pass

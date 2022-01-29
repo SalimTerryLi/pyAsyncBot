@@ -2,28 +2,26 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..ProtocolWare import ProtocolWare
-    from ..BotWare import BotWare
-    from ..commu.CommunicationBackend import CommunicationBackend
-    from ..Message import GroupedSegment
+    pass
 
 import typing
+from abc import ABC
+
+from ..FrameworkWrapper import ProtocolWrapper, BotWrapper
 
 
-class Protocol:
+class Protocol(ProtocolWrapper, ABC):
     """
     Bot framework protocol layer.
 
-    Use self._botware to interate with bot framework
+    Use self._bot_wrapper to interact with bot framework
 
-    Implement those functions to provide corresponding functionalities, in the flat manner
+    Implement those abstract functions from ProtocolWrapper to provide corresponding functionalities, in the flat manner
     """
-    _protocolware: ProtocolWare
-    _botware: BotWare
 
-    def __init__(self, protocolware: ProtocolWare):
-        self._protocolware = protocolware
-        self._botware = protocolware._botware
+    def __init__(self, bot_wrapper: BotWrapper):
+        self._bot_wrapper: BotWrapper = bot_wrapper
+        pass
 
     @staticmethod
     def required_communication() -> typing.List[str]:
@@ -66,47 +64,5 @@ class Protocol:
         Override this one to do testing and detection if required by protocol design
 
         :return: True if probed successfully, otherwise false
-        """
-        pass
-
-    def create_task(self, coro: typing.Awaitable, name: str):
-        """
-        Call this to start a new task with given co-routine
-
-        :param name: task name
-        :param coro: task coroutine
-        """
-        self._protocolware._bot._create_bot_task(coro, name)
-
-    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
-        """
-        Override this function to implement content querying of packed message
-
-        :param id: packed msgid
-        :return: context-free message obj
-        """
-        pass
-
-    async def get_friend_list(self) -> typing.List[int]:
-        """
-        Override this function to provide friend list content. Normally not need to do cache here.
-
-        :return: a list of user ids
-        """
-        pass
-
-    async def get_group_list(self) -> typing.List[int]:
-        """
-        Override this function to provide group list content. Normally not need to do cache here.
-
-        :return: a list of group ids
-        """
-        pass
-
-    async def get_group_members(self, id: int) -> typing.List[int]:
-        """
-        Get the group member list
-
-        :param id: group id
         """
         pass

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import asyncio
 import aiohttp
 import typing
@@ -10,23 +11,14 @@ from .http import HTTPClient
 class WebSocketClient(CommunicationBackend):
     """
     WebSocket Client backend
-
-    callback format: dict {'type': 'binary|text', 'data': data}
-
-    send_message format: dict {'type': 'binary|text', 'data': msg.data} return True as success
     """
-    _aws: aiohttp.client.ClientWebSocketResponse
-    _http_base: HTTPClient
-    _http_base_managed: bool
-
-    _on_text_cb: typing.Callable[[str], None]
-    _on_bin_cb: typing.Callable[[bytes], None]
 
     def __init__(self):
-        self._http_base = None
-        self._http_base_managed = None
-        self._aws = None
-        self._on_text_cb = None
+        self._http_base: HTTPClient = None
+        self._http_base_managed: bool = None
+        self._aws: aiohttp.client.ClientWebSocketResponse = None
+        self._on_text_cb: typing.Callable[[str], None] = None
+        self._on_bin_cb: typing.Callable[[bytes], None] = None
 
     @classmethod
     def from_http_client(cls, http_client: HTTPClient):
@@ -46,14 +38,14 @@ class WebSocketClient(CommunicationBackend):
         print('ws client use newly created http client')
         return ret
 
-    async def setup(self) -> bool:
+    async def setup(self) -> typing.Any:
         if self._http_base_managed:
             await self._http_base.setup()
         self._aws = await self._http_base.upgrade_ws()
         if self._aws is None:
             print('failed to create ws from http client')
-            return False
-        return True
+            raise CommunicationBackend.SetupFailed()
+        return WSClientAPI(self)
 
     async def cleanup(self):
         if self._aws is not None:
@@ -96,35 +88,38 @@ class WebSocketClient(CommunicationBackend):
                 await self._aws.close()
                 return
 
+
+class WSClientAPI:
+    def __init__(self, wsclient: WebSocketClient):
+        self._ws: WebSocketClient = wsclient
+
     def register_text_message_callback(self, callback: typing.Callable[[str], None]):
         """
         Call this function to register a text message callback
 
         :param callback: callback function
-        :return:
         """
-        self._on_text_cb = callback
+        self._ws._on_text_cb = callback
 
     def register_binary_message_callback(self, callback: typing.Callable[[bytes], None]):
         """
         Call this function to register a binary message callback
 
         :param callback: callback function
-        :return:
         """
-        self._on_bin_cb = callback
+        self._ws._on_bin_cb = callback
 
-    async def send_text_message(self, data: typing.Any) -> typing.Any:
+    async def send_text_message(self, data: str) -> typing.Any:
         try:
-            await self._aws.send_str(data['data'])
+            await self._ws._aws.send_str(data)
             return True
         except Exception as e:
             print(e)
             return False
 
-    async def send_binary_message(self, data: typing.Any) -> typing.Any:
+    async def send_binary_message(self, data: bytes) -> typing.Any:
         try:
-            await self._aws.send_bytes(data['data'])
+            await self._ws._aws.send_bytes(data)
             return True
         except Exception as e:
             print(e)

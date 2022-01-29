@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
 
 import asyncio
 import typing
-from asyncio import AbstractEventLoop
 import aiohttp
 
 from .CommunicationBackend import CommunicationBackend
@@ -12,29 +10,24 @@ from .CommunicationBackend import CommunicationBackend
 class HTTPClient(CommunicationBackend):
     """
     HTTP Client backend
-
-    send_message type: {'method':, 'path':, 'content-type':, 'params': 'data'}
-
-    return type: {'code':, 'content-type':, 'data':}
     """
     _ahttp: aiohttp.ClientSession
-
-    _api: HTTPClientAPI
 
     def __init__(self, remote_addr: str, remote_port: int):
         self._addr = remote_addr
         self._port = remote_port
         self._ahttp = None
-        self._api = None
-        print('new http client created')
 
-    async def setup(self) -> bool:
+    async def setup(self) -> typing.Any:
         self._ahttp = aiohttp.ClientSession(loop=asyncio.get_running_loop())
-        self._api = HTTPClientAPI(self)
-        return True
+        return HTTPClientAPI(self)
 
     async def cleanup(self):
         await self._ahttp.close()
+
+    async def run_daemon(self):
+        # HTTP client has no daemon
+        pass
 
     async def upgrade_ws(self) -> aiohttp.client.ClientWebSocketResponse:
         try:
@@ -45,14 +38,6 @@ class HTTPClient(CommunicationBackend):
         except Exception as e:
             print(e)
             return None
-
-    def get_http_client(self):
-        """
-        Call this function to get a reference of aiohttp client obj
-
-        :return:
-        """
-        return self._api
 
 
 class HTTPClientAPI:
