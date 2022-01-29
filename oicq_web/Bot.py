@@ -5,6 +5,8 @@ if TYPE_CHECKING:
 
 import typing
 import asyncio
+import traceback
+import sys
 
 from .Message import ReceivedMessage
 from .CommunicationWare import CommunicationWare
@@ -62,7 +64,12 @@ class Bot:
     async def __create_bot_task_coro(self, coro: typing.Awaitable):
         # add some wrapper to monitor the state of those sub tasks
         self.__task_set.add(asyncio.current_task(self._async_loop))
-        ret = await coro
+        ret = 0
+        try:
+            ret = await coro
+        except Exception:
+            print('Exception from bot tasks:', file=sys.stderr)
+            traceback.print_exc()
         self.__task_set.remove(asyncio.current_task(self._async_loop))
         return ret
 
