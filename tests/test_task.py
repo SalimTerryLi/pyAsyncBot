@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from context import oicq_web
+from context import pyasyncbot
 
 import asyncio
 
-from oicq_web import Bot, BotConfig
+from pyasyncbot import Bot, BotConfig
 
 event_loop = asyncio.new_event_loop()
 asyncio.set_event_loop(event_loop)

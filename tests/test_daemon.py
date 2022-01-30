@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import asyncio
 
-from context import oicq_web
+from context import pyasyncbot
 
 
-from oicq_web import Bot, BotConfig
+from pyasyncbot import Bot, BotConfig
 import signal
 
 bot = Bot(BotConfig(

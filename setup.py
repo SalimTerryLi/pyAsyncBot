@@ -3,10 +3,10 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='oicq_web',
-    packages=find_packages(include=['oicq_web']),
-    version='0.0.1',
-    description='A python binding for oicq-webd',
+    name='pyAsyncBot',
+    packages=find_packages(include=['pyasyncbot']),
+    version='0.0.2',
+    description='An async chat bot design for python3',
     author='SalimTerryLi',
     license='MIT',
     install_requires=[
