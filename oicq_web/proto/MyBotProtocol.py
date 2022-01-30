@@ -65,6 +65,7 @@ class MyBotProtocol(Protocol):
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
                 is_friend=msgdata['known'],
                 from_channel=msgdata['channel'],
+                from_channel_name=msgdata['channel_name'],
                 reply=reply
             )
         elif msgdata['type'] == 'group':

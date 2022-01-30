@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from .FrameworkWrapper import ProtocolWrapper
 
 from ujson import dumps
-from typing import Union, Dict
+from typing import Union, Dict, Any
 
 
 class Channel:
@@ -51,6 +51,7 @@ class Friend(User, Channel):
         return dumps({
             'type': 'Friend',
             'id': self.get_id(),
+            'nick': self.get_nick_name()
         }, ensure_ascii=False)
 
 
@@ -64,6 +65,7 @@ class Stranger(User, Channel):
         return dumps({
             'type': 'Stranger',
             'id': self.get_id(),
+            'nick': self.get_nick_name(),
             'from_group_id': self._gid
         }, ensure_ascii=False)
 
@@ -78,16 +80,17 @@ class GroupMember(User):
         return dumps({
             'type': 'GroupMember',
             'group_id': self._gid,
+            'nick': self.get_nick_name(),
             'sender_id': self.get_id(),
         }, ensure_ascii=False)
 
-    def open_private_channel(self) -> Channel:
+    async def open_private_channel(self) -> Channel:
         """
         If the group member is one of the friends then a Friend object is returned.
 
         Else will return a Stranger instance instead
         """
-        ret = self._contact.get_friend(self._uid)
+        ret = await self._contact.get_friend(self._uid)
         if ret is None:
             ret = Stranger(self._contact, self._uid, self._nick, self._gid)
         return ret
@@ -103,17 +106,18 @@ class GroupAnonymousMember(User):
         return dumps({
             'type': 'GroupAnonymousMember',
             'group_id': self._gid,
+            'nick': self.get_nick_name(),
             'anonymous_id': self.get_id(),
         }, ensure_ascii=False)
 
 
 class Group(Channel):
-    # TODO: lazy loading lists
     def __init__(self, contact: Contacts, gid: int, name: str):
         super().__init__(contact)
         self._gid = gid
         self._name = name
         self._members: Dict[int, GroupMember] = None
+        self._members_tmp: Dict[int, GroupMember] = dict()
 
     def __eq__(self, other):
         if type(other) == Group:
@@ -122,16 +126,41 @@ class Group(Channel):
             return self._gid == other
         return False
 
-    async def get_member(self, id: int) -> Union[GroupMember, None]:
+    async def get_member(self, id: int, nick: str = None) -> Union[GroupMember, None]:
         """
         Pick a group member obj from given id
 
+        Will not try to populate member list if nick is provided, as lazy loading is
+
         :param id: user id
+        :param nick: user nickname
         """
         if self._members is None:
-            self._members = dict()
-            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
-                self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
+            # member list is not populated
+            if id in self._members_tmp:
+                # but the member is in cache, that's all
+                return self._members_tmp[id]
+            # if that member is also not in cache, so that we must get one
+            if nick is None:
+                # no nick is provided so that the whole member list must be obtained
+                self._members = dict()
+                for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
+                    self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
+                print('group member list initially forced fetched for {gid}, with {size} entries'.format(
+                    gid=self._gid, size=len(self._members))
+                )
+                # disable the cached list
+                self.__disable_cached_member_list()
+                # return the requested member below later
+            else:
+                # nick is also provided so that we find or create a mock member object
+                self._members_tmp[id] = GroupMember(self._contacts, id, nick, self._gid)
+                print('mocked group member list of {gid}: append {uid}, total {size}'.format(
+                    gid=self._gid, uid=id,size=len(self._members_tmp)))
+                return self._members_tmp[id]
+        else:
+            # always use the populated list
+            pass
         if id in self._members:
             return self._members[id]
         return None
@@ -142,28 +171,71 @@ class Group(Channel):
 
         :return: {uid, GroupMember} dict
         """
-        pass
+        # always make sure the list is available
+        if self._members is None:
+            self._members = dict()
+            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
+                self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
+            print('group member list initially fetched for {gid}, with {size} entries'.format(
+                gid=self._gid, size=len(self._members))
+            )
+        if self._members_tmp is not None:
+            # there's something in cache, check and cleanup
+            self.__disable_cached_member_list()
+        return self._members
+
+    def __disable_cached_member_list(self):
+        for uid in self._members_tmp:
+            if uid not in self._members:
+                print('warning: member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
+        self._members_tmp = None
 
 
 class Contacts:
-    # TODO: lazy loading lists
+    # TODO: abstract and make lazy init unified
     def __init__(self, protocol: ProtocolWrapper):
         self._proto_wrapper: ProtocolWrapper = protocol
         # lazy init of dicts
         self._friends: Dict[int, Friend] = None
         self._groups: Dict[int, Group] = None
+        self._friends_tmp: Dict[int, Friend] = dict()
+        self._groups_tmp: Dict[int, Group] = dict()
 
-    async def get_friend(self, id: int) -> Union[Friend, None]:
+    async def get_friend(self, id: int, nick: str = None) -> Union[Friend, None]:
         """
         Query the friend object from given id
 
+        Will not try to populate friend list if nick is provided, as lazy loading is
+
         :param id: user id
+        :param nick: user nickname
         :return: None if not found
         """
         if self._friends is None:
-            self._friends = dict()
-            for uid, nick in (await self._proto_wrapper.get_friend_list()).items():
-                self._friends[uid] = Friend(self, uid, nick)
+            # friend list is not populated
+            if id in self._friends_tmp:
+                # but the friend is in cache, that's all
+                return self._friends_tmp[id]
+            # if that member is also not in cache, so that we must get one
+            if nick is None:
+                # no nick is provided so that the whole member list must be obtained
+                self._friends = dict()
+                for uid, nick in (await self._proto_wrapper.get_friend_list()).items():
+                    self._friends[uid] = Friend(self, uid, nick)
+                print('friend list initially forced fetched, with {size} entries'.format(
+                    size=len(self._friends))
+                )
+                # disable the cached list
+                self.__disable_cached_friends_list()
+                # return the requested member below later
+            else:
+                # nick is also provided so that we create a mock friend object
+                self._friends_tmp[id] = Friend(self, id, nick)
+                print('mocked friend list: append {uid}, total {size}'.format(uid=id,size=len(self._friends_tmp)))
+                return self._friends_tmp[id]
+        else:
+            # always use the populated list
+            pass
         if id in self._friends:
             return self._friends[id]
         return None
@@ -174,19 +246,60 @@ class Contacts:
 
         :return: {uid, Friend} dict
         """
-        pass
+        # ensure list is available
+        if self._friends is None:
+            self._friends = dict()
+            for uid, nick in (await self._proto_wrapper.get_friend_list()).items():
+                self._friends[uid] = Friend(self, uid, nick)
+            print('friend list initially fetched, with {size} entries'.format(
+                size=len(self._friends))
+            )
+        if self._friends_tmp is not None:
+            # there's something in cache, check and cleanup
+            self.__disable_cached_friends_list()
+        return self._friends
 
-    async def get_group(self, id: int) -> Union[Group, None]:
+    def __disable_cached_friends_list(self):
+        for uid in self._friends_tmp:
+            if uid not in self._friends:
+                print('warning: friend {uid} doesn\' t exist'.format(uid=uid))
+        self._friends_tmp = None
+
+    async def get_group(self, id: int, name: str = None) -> Union[Group, None]:
         """
         Query the group object from given id
 
+        Will not try to populate group list if name is provided, as lazy loading is
+
         :param id: group id
+        :param name: group name
         :return: None if not found
         """
         if self._groups is None:
-            self._groups = dict()
-            for gid, name in (await self._proto_wrapper.get_group_list()).items():
-                self._groups[gid] = Group(self, gid, name)
+            # group list is not populated
+            if id in self._groups_tmp:
+                # but the friend is in cache, that's all
+                return self._groups_tmp[id]
+            # if that member is also not in cache, so that we must get one
+            if name is None:
+                # no nick is provided so that the whole member list must be obtained
+                self._groups = dict()
+                for gid, name in (await self._proto_wrapper.get_group_list()).items():
+                    self._groups[gid] = Group(self, gid, name)
+                print('group list initially forced fetched, with {size} entries'.format(
+                    size=len(self._groups))
+                )
+                # disable the cached list
+                self.__disable_cached_groups_list()
+                # return the requested member below later
+            else:
+                # name is also provided so that we create a mock group object
+                self._groups_tmp[id] = Group(self, id, name)
+                print('mocked group list: append {gid}, total {size}'.format(gid=id,size=len(self._groups_tmp)))
+                return self._groups_tmp[id]
+        else:
+            # always use the populated list
+            pass
         if id in self._groups:
             return self._groups[id]
         return None
@@ -197,4 +310,21 @@ class Contacts:
 
         :return: {uid, Group} dict
         """
-        pass
+        # ensure list is available
+        if self._groups is None:
+            self._groups = dict()
+            for gid, name in (await self._proto_wrapper.get_group_list()).items():
+                self._groups[gid] = Group(self, gid, name)
+            print('group list initially fetched, with {size} entries'.format(
+                size=len(self._groups))
+            )
+        if self._groups_tmp is not None:
+            # there's something in cache, check and cleanup
+            self.__disable_cached_groups_list()
+        return self._groups
+
+    def __disable_cached_groups_list(self):
+        for gid in self._groups_tmp:
+            if gid not in self._groups:
+                print('warning: group {gid} doesn\' t exist'.format(gid=gid))
+        self._friends_tmp = None

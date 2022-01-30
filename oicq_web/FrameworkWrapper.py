@@ -33,7 +33,7 @@ class BotWrapper:
 
     async def deliver_private_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str, msgid: str,
                                   msgcontent: MessageContent, is_friend: bool = True, from_channel: int = None,
-                                  reply: RepliedMessageContent = None):
+                                  from_channel_name: str = None, reply: RepliedMessageContent = None):
         """
         Call this func to deliver a private message event to bot payload
 
@@ -43,7 +43,8 @@ class BotWrapper:
         :param msgid: msg id
         :param msgcontent: parsed msg content object
         :param is_friend: friend, or stranger
-        :param from_channel: If it is from a stranger then this field is a must
+        :param from_channel: If it is from a stranger then this field is the group that the one is from
+        :param from_channel_name: as above, the group name
         :param reply: parsed reply info object
         """
         msg: ReceivedMessage = ReceivedMessage(self.__bot.get_contacts())
@@ -52,11 +53,11 @@ class BotWrapper:
         msg._msgContent = msgcontent
         msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
         if is_friend:
-            msg._channel = await self.__bot.get_contacts().get_friend(sender_id)
+            msg._channel = await self.__bot.get_contacts().get_friend(sender_id, sender_nick)
             msg._sender = msg._channel
         else:
-            msg._channel = await self.__bot.get_contacts().get_group(from_channel)
-            msg._sender = await msg._channel.get_member(sender_id)
+            msg._channel = await self.__bot.get_contacts().get_group(from_channel, from_channel_name)
+            msg._sender = await (await msg._channel.get_member(sender_id, sender_nick)).open_private_channel()
 
         if self.__bot._on_private_msg_cb is not None:
             await self.__bot._on_private_msg_cb(msg)
@@ -84,11 +85,11 @@ class BotWrapper:
         msg._msgContent = msgcontent
         msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
         if is_anonymous:
-            msg._channel = await self.__bot.get_contacts().get_group(group_id)
+            msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
             msg._sender = GroupAnonymousMember(self.__bot.get_contacts(), sender_id, '', group_id)  # TODO: temporarily use empty nick
         else:
-            msg._channel = await self.__bot.get_contacts().get_group(group_id)
-            msg._sender = await msg._channel.get_member(sender_id)
+            msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
+            msg._sender = await msg._channel.get_member(sender_id, sender_nick)
 
         if self.__bot._on_group_msg_cb is not None:
             await self.__bot._on_group_msg_cb(msg)
@@ -100,7 +101,9 @@ class BotWrapper:
         :param id: user id
         """
         if self.__bot.get_contacts()._friends is None:
-            return None
+            if id in self.__bot.get_contacts()._friends_tmp:
+                del self.__bot.get_contacts()._friends_tmp[id]
+            return
         if id in self.__bot.get_contacts()._friends:
             del self.__bot.get_contacts()._friends[id]
 
@@ -123,7 +126,9 @@ class BotWrapper:
         :param id: group id
         """
         if self.__bot.get_contacts()._groups is None:
-            return None
+            if id in self.__bot.get_contacts()._groups_tmp:
+                del self.__bot.get_contacts()._groups_tmp[id]
+            return
         if id in self.__bot.get_contacts()._groups:
             del self.__bot.get_contacts()._groups[id]
 
@@ -163,12 +168,17 @@ class BotWrapper:
         :param uid: which user
         :param gid: which group
         """
-        # ignore those event if contact is not used
         if self.__bot.get_contacts()._groups is None:
+            if gid in self.__bot.get_contacts()._groups_tmp:
+                del self.__bot.get_contacts()._groups_tmp[uid]
             return
         if gid not in self.__bot.get_contacts()._groups:
+            # it is already loaded list
+            print('error: group {gid} doesn\' t exist!'.format(gid=gid))
             return
         if self.__bot.get_contacts()._groups[gid]._members is None:
+            if uid in self.__bot.get_contacts()._groups[gid]._members_tmp:
+                del self.__bot.get_contacts()._groups[gid]._members_tmp[uid]
             return
         del self.__bot.get_contacts()._groups[gid]._members[uid]
 
