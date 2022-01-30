@@ -5,6 +5,7 @@ import base64
 import datetime
 import typing
 from typing import List
+from dataclasses import dataclass
 
 import aiofiles
 
@@ -240,3 +241,19 @@ class MessageContent:
         for msg in self._msgs:
             result += str(msg)
         return result
+
+
+@dataclass
+class RepliedMessageContent:
+    to_uid: int
+    time: datetime.datetime
+    text: str
+    to_msgid: str
+
+    def __str__(self):
+        return str({
+            'to': self.to_uid,
+            'msgid': self.to_msgid,
+            'time': str(self.time),
+            'text': self.text
+        })

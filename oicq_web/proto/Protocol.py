@@ -2,21 +2,26 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..ProtocolWare import ProtocolWare
-    from ..BotWare import BotWare
-    from ..commu.CommunicationBackend import CommunicationBackend
-    from ..Message import GroupedSegment
+    pass
 
 import typing
+from abc import ABC
+
+from ..FrameworkWrapper import ProtocolWrapper, BotWrapper
 
 
-class Protocol:
-    _protocolware: ProtocolWare
-    _botware: BotWare
+class Protocol(ProtocolWrapper, ABC):
+    """
+    Bot framework protocol layer.
 
-    def __init__(self, protocolware: ProtocolWare):
-        self._protocolware = protocolware
-        self._botware = protocolware._botware
+    Use self._bot_wrapper to interact with bot framework
+
+    Implement those abstract functions from ProtocolWrapper to provide corresponding functionalities, in the flat manner
+    """
+
+    def __init__(self, bot_wrapper: BotWrapper):
+        self._bot_wrapper: BotWrapper = bot_wrapper
+        pass
 
     @staticmethod
     def required_communication() -> typing.List[str]:
@@ -61,21 +66,3 @@ class Protocol:
         :return: True if probed successfully, otherwise false
         """
         pass
-
-    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
-        """
-        Override this function to implement content querying of packed message
-
-        :param id: packed msgid
-        :return: context-free message obj
-        """
-        pass
-
-    def create_task(self, coro: typing.Awaitable, name: str):
-        """
-        Call this to start a new task with given co-routine
-
-        :param name: task name
-        :param coro: task coroutine
-        """
-        self._protocolware._bot._create_bot_task(coro, name)

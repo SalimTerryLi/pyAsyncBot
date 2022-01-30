@@ -4,41 +4,28 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .Bot import Bot
 
-
-from typing import Dict, Any, Type
+import typing
 
 from .BotConfig import BotConfig
-from .BotWare import BotWare
-from .proto.Protocol import Protocol
 from .commu.http import *
 from .commu.websocket import *
 
 
-class ProtocolWare:
-    _bot: Bot
-    _botware: BotWare
-    _commus: Dict[str, CommunicationBackend]
-    _protocol: Protocol
-    _commu_tasks: typing.List[asyncio.Task]
+class CommunicationWare:
+    _commus: typing.Dict[str, CommunicationBackend]
+    _commu_tasks: typing.Set[asyncio.Task]
 
-    def __init__(self, bot_conf: BotConfig, bot: Bot):
-        self._bot = bot
-        self._botware = BotWare(bot, self)
-        self._commu_tasks = []
-        # create bot protocol obj from bot protocol string
-        if bot_conf.bot_protocol == 'MyBotProtocol':
-            from .proto.MyBotProtocol import MyBotProtocol as BotProtocol
-        else:
-            raise Exception('no supported bot protocol found')
-        self._protocol = BotProtocol(self)
-        # create required communication channels gained from bot protocol class
-        self._commus = {}
-        required_commus = self._protocol.required_communication()
-        if 'http_client' in required_commus:
+    def __init__(self):
+        self._commus = dict()
+        self._commu_tasks = set()
+
+    async def setup(self, reqs: typing.List[str], bot_conf: BotConfig) -> typing.Dict[str, typing.Any]:
+        if 'http_client' in reqs:
+            # create http client
             self._commus['http_client'] = HTTPClient(bot_conf.http_setting.remote_addr,
                                                      bot_conf.http_setting.remote_port)
-            required_commus.remove('http_client')
-        if 'ws_client' in required_commus:
+            reqs.remove('http_client')
+        if 'ws_client' in reqs:
             # a simple 'break' point for convenience
             while True:
                 # check if http client shares the same endpoint configuration as ws client
@@ -48,32 +35,38 @@ class ProtocolWare:
                     if 'http_client' in self._commus:
                         # create ws on top of http
                         self._commus['ws_client'] = WebSocketClient.from_http_client(self._commus['http_client'])
-                        required_commus.remove('ws_client')
+                        reqs.remove('ws_client')
                         break
                 # create from parameter and let ws manage http base
                 self._commus['ws_client'] = WebSocketClient.from_parameters(
                     bot_conf.ws_setting.remote_addr,
                     bot_conf.ws_setting.remote_port
                 )
-                required_commus.remove('ws_client')
+                reqs.remove('ws_client')
                 break
         # TODO: other communication backends
-        if len(required_commus) != 0:
+        if len(reqs) != 0:
             raise Exception('required communication backends {backend} not supported, required by {proto}'.format(
-                proto=str(required_commus),
+                proto=str(reqs),
                 backend=bot_conf.bot_protocol,
             ))
 
-    async def setup(self) -> bool:
+        ret: typing.Dict[str, typing.Any] = dict()
         if 'http_client' in self._commus:
-            if not await self._commus['http_client'].setup():
+            try:
+                ret['http_client'] = await self._commus['http_client'].setup()
+            except CommunicationBackend.SetupFailed as e:
                 print('failed to setup http_client')
-                return False
+                await self.cleanup()
+                raise e
         if 'ws_client' in self._commus:
-            if not await self._commus['ws_client'].setup():
+            try:
+                ret['ws_client'] = await self._commus['ws_client'].setup()
+            except CommunicationBackend.SetupFailed as e:
                 print('failed to setup ws_client')
-                return False
-        return True
+                await self.cleanup()
+                raise e
+        return ret
 
     async def cleanup(self):
         if 'ws_client' in self._commus:
@@ -85,18 +78,12 @@ class ProtocolWare:
 
     async def run(self):
         for comm in self._commus:
-            self._commu_tasks.append(self._bot._create_bot_task(
+            # Those tasks doesn't need to be monitored by bot, as they will always block the main task
+            self._commu_tasks.add(asyncio.get_running_loop().create_task(
                 self._commus[comm].run_daemon(),
-                '{comm}_listen'.format(comm=comm)
+                name='{comm}_daemon'.format(comm=comm)
             ))
-        if not await self._protocol.setup(self._commus):
-            self.request_stop()
-            return
-        if not await self._protocol.probe():
-            self.request_stop()
-            return
         await asyncio.gather(*self._commu_tasks)
-        await self._protocol.cleanup()
 
     def request_stop(self):
         for task in self._commu_tasks:

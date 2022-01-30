@@ -5,24 +5,22 @@ if TYPE_CHECKING:
 
 import typing
 import asyncio
+import traceback
+import sys
 
 from .Message import ReceivedMessage
-from .ProtocolWare import ProtocolWare
+from .CommunicationWare import CommunicationWare
+from .commu.CommunicationBackend import CommunicationBackend
+from .FrameworkWrapper import BotWrapper
 from .BotConfig import BotConfig
+from .Contacts import Contacts
+from .proto.Protocol import Protocol
 
 
 class Bot:
     """
-    Async Bot client
+    Async Chat Bot Client for Python3
     """
-
-    _protoware: ProtocolWare
-    _async_loop: asyncio.AbstractEventLoop
-    __task_set: typing.Set[asyncio.Task]
-
-    # registered callbacks
-    _on_private_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
-    _on_group_msg: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
 
     def __init__(self, conf: BotConfig):
         """
@@ -33,9 +31,15 @@ class Bot:
 
         :param conf: bot config
         """
-        self._protoware = ProtocolWare(conf, self)
-        self._async_loop = None
-        self.__task_set = set()
+        self._config: BotConfig = conf
+        self._commuware: CommunicationWare = CommunicationWare()
+        self._async_loop: asyncio.AbstractEventLoop = None      # Get filled run-timely
+        self.__task_set: typing.Set[asyncio.Task] = set()
+        self._contacts = None                                   # Get filled run-timely
+
+        # registered callbacks
+        self._on_private_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
+        self._on_group_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
 
     def __del__(self):
         pass
@@ -58,8 +62,14 @@ class Bot:
         return self._async_loop.create_task(self.__create_bot_task_coro(coro), name=name)
 
     async def __create_bot_task_coro(self, coro: typing.Awaitable):
+        # add some wrapper to monitor the state of those sub tasks
         self.__task_set.add(asyncio.current_task(self._async_loop))
-        ret = await coro
+        ret = 0
+        try:
+            ret = await coro
+        except Exception:
+            print('Exception from bot tasks:', file=sys.stderr)
+            traceback.print_exc()
         self.__task_set.remove(asyncio.current_task(self._async_loop))
         return ret
 
@@ -82,9 +92,8 @@ class Bot:
         bot exited or not.
         """
         self._async_loop = asyncio.get_running_loop()
-        main_task = self._async_loop.create_task(self._run(), name='main task')
-        print('main task emitted')
-        ret = await main_task
+        print('main task started')
+        ret = await self._run()
         print('main task exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
         await asyncio.gather(*self.__task_set)
         print('all tasks exited')
@@ -97,25 +106,74 @@ class Bot:
         Will only stop the daemon, but not touching any sub-tasks launched by daemon.
         Assume those tasks will exit properly by themself
         """
-        self._async_loop.call_soon_threadsafe(self._protoware.request_stop)
+        self._async_loop.call_soon_threadsafe(self._commuware.request_stop)
 
     async def _run(self):
-        if await self._protoware.setup():
-            await self._protoware.run()
-        await self._protoware.cleanup()
+        bot_protocol: Protocol = None
+        # get bot_protocol instance based on configuration
+        if self._config.bot_protocol == 'MyBotProtocol':
+            from .proto.MyBotProtocol import MyBotProtocol
+            bot_protocol = MyBotProtocol(BotWrapper(self))
+        else:
+            print('unsupported bot protocol: ' + self._config.bot_protocol)
+            return -1
+
+        # initializing commuware with requested backends
+        commus = dict()
+        try:
+            commus = await self._commuware.setup(bot_protocol.required_communication(), self._config)
+        except CommunicationBackend.SetupFailed:
+            print('failed to setup communication backend')
+            return -2
+
+        # doing bot protocol initialization that doesn't require run-time interaction
+        if not await bot_protocol.setup(commus):
+            print(self._config.bot_protocol + ' setup failed')
+            await self._commuware.cleanup()
+            return -3
+
+        # bring up communication daemons
+        commu_task = self._async_loop.create_task(self._commuware.run(), name='bot daemon')
+
+        retval = 0
+        # now commu backend is fully working, do protocol probe
+        if not await bot_protocol.probe():
+            print(self._config.bot_protocol + ' probe failed')
+            # at this point we can do cleanup in normal routine
+            self._commuware.request_stop()
+            # but set retval
+            retval = -4
+
+        # bot protocol is ready, create protocol wrapper and initialize contacts
+        self._contacts = Contacts(bot_protocol)
+
+        # wait until the daemon task finished
+        await commu_task
+
+        # do cleanups
+        await bot_protocol.cleanup()
+        await self._commuware.cleanup()
+
+        return retval
+
+    def get_contacts(self) -> Contacts:
+        """
+        Get the contacts obj of this bot
+        """
+        return self._contacts
 
     def on_private_message(self, deco):
         """
         Register message callback for private channel
         """
-        if self._on_private_msg is not None:
-            print('warning: overwrite on_private_msg')
-        self._on_private_msg = deco
+        if self._on_private_msg_cb is not None:
+            print('warning: overwrite _on_private_msg_cb')
+        self._on_private_msg_cb = deco
 
     def on_group_message(self, deco):
         """
-        Register message callback for group channel
+        Register message callback for private channel
         """
-        if self._on_group_msg is not None:
-            print('warning: overwrite on_group_msg')
-        self._on_group_msg = deco
+        if self._on_group_msg_cb is not None:
+            print('warning: overwrite _on_group_msg_cb')
+        self._on_group_msg_cb = deco

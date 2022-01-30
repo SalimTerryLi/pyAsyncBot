@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Contacts import *
 
 import datetime
 from typing import Union
-from ujson import dumps
 
 from .MsgContent import *
-from .Contact import *
 
 
 class RepliedMessage:
@@ -14,19 +15,15 @@ class RepliedMessage:
     A small structure which contains information of a replied reference message.
     """
 
-    def __init__(self):
-        self._to: User = None
-        self._time: datetime.datetime = None
-        self._text: str = None
-        self._id: str = None
+    def __init__(self, contacts: Contacts, content: RepliedMessageContent, ctx: ReceivedMessage):
+        self._content = content
+        self._contacts = contacts
+        self._ctx = ctx
 
     def __str__(self):
-        return dumps({
-            'user_id': str(self._to),
-            'time': str(self._time),
-            'summary': self._text,
-            'msgID': self._id
-        }, ensure_ascii=False)
+        if self._content is None:
+            return str(None)
+        return str(self._content)
 
     def get_msgid(self):
         """
@@ -34,7 +31,7 @@ class RepliedMessage:
 
         :return: msgid
         """
-        return self._id
+        return self._content.to_msgid
 
     async def get_original_msg(self) -> Union[ReceivedMessage, None]:
         """
@@ -46,13 +43,22 @@ class RepliedMessage:
         """
         pass
 
+    async def get_sender(self) -> Union[Friend, GroupMember, Stranger, GroupAnonymousMember]:
+        """
+        Get the sender of the message being replied
+
+        :return: sender
+        """
+        pass
+
 
 class ReceivedMessage:
     """
     Received message
     """
 
-    def __init__(self):
+    def __init__(self, contacts):
+        self.__contacts = contacts
         self._time: datetime.datetime = None
         self._channel: Channel = None
         self._sender: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
@@ -61,13 +67,13 @@ class ReceivedMessage:
         self._reply: RepliedMessage = None
 
     def __str__(self):
-        return dumps({
+        return str({
             'time': str(self._time),
             'sender': str(self._sender),
             'msgID': self._msgID,
             'msgContent': str(self._msgContent),
             'reply_to': str(self._reply),
-        }, ensure_ascii=False)
+        })
 
     def get_channel(self) -> Channel:
         """
