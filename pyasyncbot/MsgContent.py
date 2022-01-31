@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Bot import Bot
 
 import base64
 import datetime
@@ -171,7 +174,6 @@ class GroupedSegment(MessageSegment):
     """
     Part of a message where continuous characters belong to
     """
-    _grouped_msg_id: str
 
     class ContextFreeMessage(typing.TypedDict):
         id: int
@@ -180,7 +182,7 @@ class GroupedSegment(MessageSegment):
         content: MessageContent
 
     def __init__(self):
-        self._grouped_msg_id = None
+        self._grouped_msg_id: str = None
 
     @classmethod
     def from_grouped_msg_id(cls, grouped_msg_id: str):
@@ -194,28 +196,31 @@ class GroupedSegment(MessageSegment):
         ret._grouped_msg_id = grouped_msg_id
         return ret
 
-    async def from_msgids(self, msgids: typing.List[str]):
+    async def from_msgids(self, bot: Bot, msgids: typing.List[str]):
         """
         Create grouped message from given message ids
 
+        :param bot: bot context
         :param msgids: a list of msgIDs
         :return:
         """
         pass
 
-    async def from_raw_messages(self, msgs: typing.List[ContextFreeMessage]):
+    async def from_raw_messages(self, bot: Bot, msgs: typing.List[ContextFreeMessage]):
         """
         Create grouped message from stretch
 
+        :param bot: bot context
         :param msgs: a list of InGroupMessage
         :return:
         """
         pass
 
-    async def get_contents(self) -> typing.List[ContextFreeMessage]:
+    async def get_contents(self, bot: Bot) -> typing.List[ContextFreeMessage]:
         """
         Fetch the actual contents of this grouped message
 
+        :param bot: bot context
         :return: a list of context-free messages
         """
         pass
