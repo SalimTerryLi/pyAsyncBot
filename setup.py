@@ -4,9 +4,9 @@ from setuptools import find_packages, setup
 
 setup(
     name='pyAsyncBot',
-    packages=find_packages(include=['pyasyncbot']),
+    packages=find_packages(include=['pyasyncbot', 'pyasyncbot.*']),
     version='0.0.2',
-    description='An async chat bot design for python3',
+    description='An async chat bot client framework',
     author='SalimTerryLi',
     license='MIT',
     install_requires=[
