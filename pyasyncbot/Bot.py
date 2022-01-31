@@ -9,7 +9,7 @@ import asyncio
 import traceback
 import sys
 
-from .Message import ReceivedMessage
+from .Message import ReceivedMessage, RevokedMessage
 from .CommunicationWare import CommunicationWare
 from .commu.CommunicationBackend import CommunicationBackend
 from .FrameworkWrapper import BotWrapper
@@ -41,6 +41,8 @@ class Bot:
         # registered callbacks
         self._on_private_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
         self._on_group_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
+        self._on_private_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
+        self._on_group_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
 
     def __del__(self):
         pass
@@ -173,8 +175,24 @@ class Bot:
 
     def on_group_message(self, deco):
         """
-        Register message callback for private channel
+        Register message callback for group channel
         """
         if self._on_group_msg_cb is not None:
             logger.warning('overwrite _on_group_msg_cb')
         self._on_group_msg_cb = deco
+
+    def on_private_revoke(self, deco):
+        """
+        Register revoke callback for private channel
+        """
+        if self._on_private_revoke_cb is not None:
+            logger.warning('overwrite _on_private_revoke_cb')
+        self._on_private_revoke_cb = deco
+
+    def on_group_revoke(self, deco):
+        """
+        Register revoke callback for group channel
+        """
+        if self._on_group_revoke_cb is not None:
+            logger.warning('overwrite _on_group_revoke_cb')
+        self._on_group_revoke_cb = deco

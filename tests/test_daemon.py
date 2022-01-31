@@ -3,7 +3,6 @@ import asyncio
 
 from context import pyasyncbot
 
-
 from pyasyncbot import Bot, BotConfig
 import signal
 
@@ -30,6 +29,17 @@ async def on_private_message(msg):
 
 @bot.on_group_message
 async def on_group_message(msg):
+    print(msg)
+    await asyncio.sleep(5)
+
+
+@bot.on_private_revoke
+async def on_private_revoke(msg):
+    print(msg)
+
+
+@bot.on_group_revoke
+async def on_group_revoke(msg):
     print(msg)
     await asyncio.sleep(5)
 

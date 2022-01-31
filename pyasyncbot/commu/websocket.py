@@ -71,7 +71,7 @@ class WebSocketClient(CommunicationBackend):
                             if self._aws is None:
                                 logger.info('retrying...')
                             else:
-                                logger.success('successfully reconnected')
+                                logger.info('successfully reconnected')
                                 break
                         except asyncio.CancelledError:
                             logger.info('reconnecting canceled')
@@ -85,7 +85,7 @@ class WebSocketClient(CommunicationBackend):
                     if self._on_bin_cb is not None:
                         self._on_bin_cb(msg.data)
             except asyncio.CancelledError:
-                logger.success('WebSocket client stopped')
+                logger.info('WebSocket client stopped')
                 await self._aws.close()
                 return
 

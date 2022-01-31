@@ -9,7 +9,7 @@ import typing
 from abc import ABC, abstractmethod
 import datetime
 
-from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent
+from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage
 from .MsgContent import GroupedSegment
 from .Contacts import Friend, Stranger, GroupMember, GroupAnonymousMember, Group
 
@@ -94,6 +94,58 @@ class BotWrapper:
 
         if self.__bot._on_group_msg_cb is not None:
             await self.__bot._on_group_msg_cb(msg)
+
+    async def deliver_private_revoke(self, time: datetime.datetime, revoker_id: int, channel: int,
+                                     is_friend: bool, msgid: str):
+        # TODO: avoid force fetching those lists
+        """
+        Call this func to deliver a private revoke event to bot payload
+
+        :param time: time of revoking
+        :param revoker_id: the one who performs revoking
+        :param revokee_id: the one whose message was revoked
+        :param channel: where the event happened
+        :param is_friend: is friend
+        :param msgid: the message being revoked
+        """
+        msg: RevokedMessage = RevokedMessage()
+        msg._time = time
+        msg._msgid = msgid
+        if is_friend:
+            msg._channel = await self.__bot.get_contacts().get_friend(channel)
+            msg._revoker = msg._channel
+        else:
+            msg._channel = await self.__bot.get_contacts().get_group(channel)
+            msg._revoker = await (await msg._channel.get_member(revoker_id)).open_private_channel()
+
+        if self.__bot._on_private_revoke_cb is not None:
+            await self.__bot._on_private_revoke_cb(msg)
+
+    async def deliver_group_revoke(self, time: datetime.datetime, revoker_id: int, group: int,
+                                     is_anonymous: bool, msgid: str):
+        # TODO: avoid force fetching those lists
+        """
+        Call this func to deliver a group revoke event to bot payload
+
+        :param time: time of revoking
+        :param revoker_id: the one who performs revoking
+        :param group: which group
+        :param is_anonymous: revoker is anonymous
+        :param msgid: message being revoked
+        :return:
+        """
+        msg: RevokedMessage = RevokedMessage()
+        msg._time = time
+        msg._msgid = msgid
+        if is_anonymous:
+            msg._channel = await self.__bot.get_contacts().get_group(group)
+            msg._revoker = GroupAnonymousMember(self.__bot.get_contacts(), revoker_id, '', group)
+        else:
+            msg._channel = await self.__bot.get_contacts().get_group(group)
+            msg._revoker = await msg._channel.get_member(revoker_id)
+
+        if self.__bot._on_group_revoke_cb is not None:
+            await self.__bot._on_group_revoke_cb(msg)
 
     async def remove_friend_from_contact(self, id: int):
         """

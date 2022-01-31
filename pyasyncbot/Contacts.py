@@ -192,6 +192,7 @@ class Group(Channel):
         return self._members
 
     def __disable_cached_member_list(self):
+        logger.debug('group {gid} member cached list disabled'.format(gid=self._gid))
         for uid in self._members_tmp:
             if uid not in self._members:
                 logger.warning('member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
@@ -267,6 +268,7 @@ class Contacts:
         return self._friends
 
     def __disable_cached_friends_list(self):
+        logger.debug('friend cached list disabled')
         for uid in self._friends_tmp:
             if uid not in self._friends:
                 logger.warning('friend {uid} doesn\' t exist'.format(uid=uid))
@@ -331,7 +333,8 @@ class Contacts:
         return self._groups
 
     def __disable_cached_groups_list(self):
+        logger.debug('group cached list disabled')
         for gid in self._groups_tmp:
             if gid not in self._groups:
                 logger.warning('group {gid} doesn\' t exist'.format(gid=gid))
-        self._friends_tmp = None
+        self._groups_tmp = None

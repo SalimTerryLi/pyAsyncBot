@@ -49,7 +49,9 @@ class MyBotProtocol(Protocol):
         try:
             msg_dict = ujson.loads(data)
             if msg_dict['type'] == 'msg':
-                self._bot_wrapper.create_task(self.parse_msg(msg_dict['data']), 'msg_worker')
+                self._bot_wrapper.create_task(self.parse_msg(msg_dict['data']), 'push_event_worker')
+            elif msg_dict['type'] == 'revoke':
+                self._bot_wrapper.create_task(self.parse_revoke(msg_dict['data']), 'push_event_worker')
         except ValueError as e:
             logger.error(e)
 
@@ -114,6 +116,26 @@ class MyBotProtocol(Protocol):
             to_msgid=reply_msg['id']
         )
         return ret
+
+    async def parse_revoke(self, data: dict):
+        if data['type'] == 'private':
+            await self._bot_wrapper.deliver_private_revoke(
+                time=datetime.datetime.fromtimestamp(data['time']),
+                revoker_id=data['revoker'],
+                channel=data['channel'],
+                msgid=data['msgID'],
+                is_friend=data['known']
+            )
+        elif data['type'] == 'group':
+            await self._bot_wrapper.deliver_group_revoke(
+                time=datetime.datetime.fromtimestamp(data['time']),
+                revoker_id=data['revoker'],
+                group=data['channel'],
+                msgid=data['msgID'],
+                is_anonymous=not data['known']
+            )
+        else:
+            logger.error('unsupported revoke.type: ' + data['type'])
 
     # below are abstract interfaces from protocol wrapper
 

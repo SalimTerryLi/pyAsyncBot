@@ -162,7 +162,14 @@ class RevokedMessage:
         self._msgid: str = None
         self._channel: Channel = None
         self._revoker: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
-        self._revokee: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
+
+    def __str__(self):
+        return str({
+            'time': str(self._time),
+            'channel': str(self._channel),
+            'revoker': str(self._revoker),
+            'msgid': self._msgid,
+        })
 
     def get_channel(self) -> Channel:
         """
@@ -180,20 +187,12 @@ class RevokedMessage:
         """
         return self._revoker
 
-    def get_revokee(self) -> User:
-        """
-        Get the one whose message was revoked
-
-        :return: user object
-        """
-        return self._revoker
-
     async def get_remoked_msg(self) -> ReceivedMessage:
         """
         Get the original message which was revoked
 
         May fail due to the replied message is flushed out of chat history
 
-        :return: message object
+        :return: message object, None if failed to get
         """
         pass
