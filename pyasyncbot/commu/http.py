@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from loguru import logger
 import asyncio
 import typing
 import aiohttp
@@ -36,7 +37,7 @@ class HTTPClient(CommunicationBackend):
                 remote_port=self._port
             ))
         except Exception as e:
-            print(e)
+            logger.error(e)
             return None
 
 

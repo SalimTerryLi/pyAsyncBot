@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .Bot import Bot
 
+from loguru import logger
 import typing
 from abc import ABC, abstractmethod
 import datetime
@@ -174,7 +175,7 @@ class BotWrapper:
             return
         if gid not in self.__bot.get_contacts()._groups:
             # it is already loaded list
-            print('error: group {gid} doesn\' t exist!'.format(gid=gid))
+            logger.error('error: group {gid} doesn\' t exist!'.format(gid=gid))
             return
         if self.__bot.get_contacts()._groups[gid]._members is None:
             if uid in self.__bot.get_contacts()._groups[gid]._members_tmp:

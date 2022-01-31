@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from loguru import logger
 import typing
 import asyncio
 import traceback
@@ -68,8 +69,8 @@ class Bot:
         try:
             ret = await coro
         except Exception:
-            print('Exception from bot tasks:', file=sys.stderr)
-            traceback.print_exc()
+            logger.error('Exception from bot tasks')
+            traceback.print_exc(file=sys.stderr)
         self.__task_set.remove(asyncio.current_task(self._async_loop))
         return ret
 
@@ -92,11 +93,11 @@ class Bot:
         bot exited or not.
         """
         self._async_loop = asyncio.get_running_loop()
-        print('main task started')
+        logger.info('main task started')
         ret = await self._run()
-        print('main task exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
+        logger.info('main task exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
         await asyncio.gather(*self.__task_set)
-        print('all tasks exited')
+        logger.info('all tasks exited')
         return ret
 
     def request_stop(self):
@@ -115,7 +116,7 @@ class Bot:
             from .proto.MyBotProtocol import MyBotProtocol
             bot_protocol = MyBotProtocol(BotWrapper(self))
         else:
-            print('unsupported bot protocol: ' + self._config.bot_protocol)
+            logger.critical('unsupported bot protocol: ' + self._config.bot_protocol)
             return -1
 
         # initializing commuware with requested backends
@@ -123,12 +124,12 @@ class Bot:
         try:
             commus = await self._commuware.setup(bot_protocol.required_communication(), self._config)
         except CommunicationBackend.SetupFailed:
-            print('failed to setup communication backend')
+            logger.critical('failed to setup communication backend')
             return -2
 
         # doing bot protocol initialization that doesn't require run-time interaction
         if not await bot_protocol.setup(commus):
-            print(self._config.bot_protocol + ' setup failed')
+            logger.critical(self._config.bot_protocol + ' setup failed')
             await self._commuware.cleanup()
             return -3
 
@@ -138,7 +139,7 @@ class Bot:
         retval = 0
         # now commu backend is fully working, do protocol probe
         if not await bot_protocol.probe():
-            print(self._config.bot_protocol + ' probe failed')
+            logger.critical(self._config.bot_protocol + ' probe failed')
             # at this point we can do cleanup in normal routine
             self._commuware.request_stop()
             # but set retval
@@ -167,7 +168,7 @@ class Bot:
         Register message callback for private channel
         """
         if self._on_private_msg_cb is not None:
-            print('warning: overwrite _on_private_msg_cb')
+            logger.warning('overwrite _on_private_msg_cb')
         self._on_private_msg_cb = deco
 
     def on_group_message(self, deco):
@@ -175,5 +176,5 @@ class Bot:
         Register message callback for private channel
         """
         if self._on_group_msg_cb is not None:
-            print('warning: overwrite _on_group_msg_cb')
+            logger.warning('overwrite _on_group_msg_cb')
         self._on_group_msg_cb = deco
