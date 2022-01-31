@@ -127,6 +127,12 @@ class Group(Channel):
             return self._gid == other
         return False
 
+    def __str__(self):
+        return str({
+            'group_id': self._gid,
+            'name': self._name
+        })
+
     async def get_member(self, id: int, nick: str = None) -> Union[GroupMember, None]:
         """
         Pick a group member obj from given id

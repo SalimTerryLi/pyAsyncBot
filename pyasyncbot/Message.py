@@ -70,6 +70,7 @@ class ReceivedMessage:
         return str({
             'time': str(self._time),
             'sender': str(self._sender),
+            'channel': str(self._channel),
             'msgID': self._msgID,
             'msgContent': str(self._msgContent),
             'reply_to': str(self._reply),
