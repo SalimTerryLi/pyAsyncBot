@@ -229,6 +229,35 @@ class GroupedSegment(MessageSegment):
         return '[Grouped:{id}]'.format(id=self._grouped_msg_id)
 
 
+class ApplicationSegment(MessageSegment):
+    """
+    Advanced segment which is defined by bot protocol
+    """
+
+    def __init__(self):
+        self._base: str = None
+        self._type: str = None
+        self._data: typing.Any = None
+        self._bref: str = None
+
+    def __str__(self):
+        return 'APPMSG[{type}:{bref}]'.format(type=self._type, bref=self._bref)
+
+    @classmethod
+    def from_data(cls, base: str, type: str, data, bref: str = ''):
+        ret = ApplicationSegment()
+        ret._type = type
+        ret._data = data
+        ret._bref = bref
+        return ret
+
+    def get_type(self):
+        return self._type
+
+    def get_data(self):
+        return self._data
+
+
 class MessageContent:
     """
     Context-free message container

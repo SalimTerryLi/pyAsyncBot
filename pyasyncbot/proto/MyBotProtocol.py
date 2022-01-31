@@ -103,6 +103,10 @@ class MyBotProtocol(Protocol):
                 ret.append_segment(MentionSegment.from_id(seg['target'], seg['displayText']))
             elif seg['type'] == 'forwarded':
                 ret.append_segment(GroupedSegment.from_grouped_msg_id(seg['id']))
+            elif seg['type'] == 'json':
+                ret.append_segment(ApplicationSegment.from_data('qq', 'json', seg['data'], 'json消息'))
+            elif seg['type'] == 'xml':
+                ret.append_segment(ApplicationSegment.from_data('qq', 'xml', seg['data'], 'xml消息'))
             else:
                 logger.error('unsupported msg segment: ' + seg['type'])
         return ret
