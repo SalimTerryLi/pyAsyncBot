@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from .Message import MessageContent, SentMessage
     from .FrameworkWrapper import ProtocolWrapper
 
+from loguru import logger
 from ujson import dumps
 from typing import Union, Dict, Any
 
@@ -146,7 +147,7 @@ class Group(Channel):
                 self._members = dict()
                 for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
                     self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
-                print('group member list initially forced fetched for {gid}, with {size} entries'.format(
+                logger.debug('group member list initially forced fetched for {gid}, with {size} entries'.format(
                     gid=self._gid, size=len(self._members))
                 )
                 # disable the cached list
@@ -155,7 +156,7 @@ class Group(Channel):
             else:
                 # nick is also provided so that we find or create a mock member object
                 self._members_tmp[id] = GroupMember(self._contacts, id, nick, self._gid)
-                print('mocked group member list of {gid}: append {uid}, total {size}'.format(
+                logger.debug('mocked group member list of {gid}: append {uid}, total {size}'.format(
                     gid=self._gid, uid=id,size=len(self._members_tmp)))
                 return self._members_tmp[id]
         else:
@@ -176,7 +177,7 @@ class Group(Channel):
             self._members = dict()
             for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
                 self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
-            print('group member list initially fetched for {gid}, with {size} entries'.format(
+            logger.debug('group member list initially fetched for {gid}, with {size} entries'.format(
                 gid=self._gid, size=len(self._members))
             )
         if self._members_tmp is not None:
@@ -187,7 +188,7 @@ class Group(Channel):
     def __disable_cached_member_list(self):
         for uid in self._members_tmp:
             if uid not in self._members:
-                print('warning: member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
+                logger.warning('member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
         self._members_tmp = None
 
 
@@ -222,7 +223,7 @@ class Contacts:
                 self._friends = dict()
                 for uid, nick in (await self._proto_wrapper.get_friend_list()).items():
                     self._friends[uid] = Friend(self, uid, nick)
-                print('friend list initially forced fetched, with {size} entries'.format(
+                logger.debug('friend list initially forced fetched, with {size} entries'.format(
                     size=len(self._friends))
                 )
                 # disable the cached list
@@ -231,7 +232,7 @@ class Contacts:
             else:
                 # nick is also provided so that we create a mock friend object
                 self._friends_tmp[id] = Friend(self, id, nick)
-                print('mocked friend list: append {uid}, total {size}'.format(uid=id,size=len(self._friends_tmp)))
+                logger.debug('mocked friend list: append {uid}, total {size}'.format(uid=id,size=len(self._friends_tmp)))
                 return self._friends_tmp[id]
         else:
             # always use the populated list
@@ -251,7 +252,7 @@ class Contacts:
             self._friends = dict()
             for uid, nick in (await self._proto_wrapper.get_friend_list()).items():
                 self._friends[uid] = Friend(self, uid, nick)
-            print('friend list initially fetched, with {size} entries'.format(
+            logger.debug('friend list initially fetched, with {size} entries'.format(
                 size=len(self._friends))
             )
         if self._friends_tmp is not None:
@@ -262,7 +263,7 @@ class Contacts:
     def __disable_cached_friends_list(self):
         for uid in self._friends_tmp:
             if uid not in self._friends:
-                print('warning: friend {uid} doesn\' t exist'.format(uid=uid))
+                logger.warning('friend {uid} doesn\' t exist'.format(uid=uid))
         self._friends_tmp = None
 
     async def get_group(self, id: int, name: str = None) -> Union[Group, None]:
@@ -286,7 +287,7 @@ class Contacts:
                 self._groups = dict()
                 for gid, name in (await self._proto_wrapper.get_group_list()).items():
                     self._groups[gid] = Group(self, gid, name)
-                print('group list initially forced fetched, with {size} entries'.format(
+                logger.debug('group list initially forced fetched, with {size} entries'.format(
                     size=len(self._groups))
                 )
                 # disable the cached list
@@ -295,7 +296,7 @@ class Contacts:
             else:
                 # name is also provided so that we create a mock group object
                 self._groups_tmp[id] = Group(self, id, name)
-                print('mocked group list: append {gid}, total {size}'.format(gid=id,size=len(self._groups_tmp)))
+                logger.debug('mocked group list: append {gid}, total {size}'.format(gid=id,size=len(self._groups_tmp)))
                 return self._groups_tmp[id]
         else:
             # always use the populated list
@@ -315,7 +316,7 @@ class Contacts:
             self._groups = dict()
             for gid, name in (await self._proto_wrapper.get_group_list()).items():
                 self._groups[gid] = Group(self, gid, name)
-            print('group list initially fetched, with {size} entries'.format(
+            logger.debug('group list initially fetched, with {size} entries'.format(
                 size=len(self._groups))
             )
         if self._groups_tmp is not None:
@@ -326,5 +327,5 @@ class Contacts:
     def __disable_cached_groups_list(self):
         for gid in self._groups_tmp:
             if gid not in self._groups:
-                print('warning: group {gid} doesn\' t exist'.format(gid=gid))
+                logger.warning('group {gid} doesn\' t exist'.format(gid=gid))
         self._friends_tmp = None

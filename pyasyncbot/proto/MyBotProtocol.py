@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from loguru import logger
 import ujson
 
 from ..commu.http import HTTPClientAPI
@@ -40,7 +41,7 @@ class MyBotProtocol(Protocol):
         if 'application/json' in res.content_type:
             data = ujson.loads(await res.text())
             if data['name'] == 'oicq-webapi':
-                print('remote version: {v}'.format(v=data['version']))
+                logger.info('remote version: {v}'.format(v=data['version']))
                 return True
         return False
 
@@ -50,7 +51,7 @@ class MyBotProtocol(Protocol):
             if msg_dict['type'] == 'msg':
                 self._bot_wrapper.create_task(self.parse_msg(msg_dict['data']), 'msg_worker')
         except ValueError as e:
-            print(e)
+            logger.error(e)
 
     async def parse_msg(self, msgdata: dict):
         if msgdata['type'] == 'private':
@@ -84,7 +85,7 @@ class MyBotProtocol(Protocol):
                 reply=reply
             )
         else:
-            print('unsupported msg.type: ' + msgdata['type'])
+            logger.error('unsupported msg.type: ' + msgdata['type'])
 
     @staticmethod
     def parse_msg_content(msg: list) -> MessageContent:
@@ -101,7 +102,7 @@ class MyBotProtocol(Protocol):
             elif seg['type'] == 'forwarded':
                 ret.append_segment(GroupedSegment.from_grouped_msg_id(seg['id']))
             else:
-                print('unsupported msg segment: ' + seg['type'])
+                logger.error('unsupported msg segment: ' + seg['type'])
         return ret
 
     @staticmethod

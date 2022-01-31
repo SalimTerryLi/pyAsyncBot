@@ -14,5 +14,6 @@ setup(
         'asyncio>=3.4.3',
         'aiohttp>=3.8.1',
         'aiofiles>=0.8.0',
+        'loguru>=0.6.0',
     ],
 )

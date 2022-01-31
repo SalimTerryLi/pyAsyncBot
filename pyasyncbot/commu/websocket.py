@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from loguru import logger
 import asyncio
 import aiohttp
 import typing
@@ -26,7 +27,7 @@ class WebSocketClient(CommunicationBackend):
         ret._http_base = http_client
         ret._http_base_managed = False
         ret._aws = None
-        print('ws client reuse existing http client')
+        logger.debug('ws client reuse existing http client')
         return ret
 
     @classmethod
@@ -35,7 +36,7 @@ class WebSocketClient(CommunicationBackend):
         ret._http_base = HTTPClient(remote_addr, remote_port)
         ret._http_base_managed = True
         ret._aws = None
-        print('ws client use newly created http client')
+        logger.debug('ws client use newly created http client')
         return ret
 
     async def setup(self) -> typing.Any:
@@ -43,7 +44,7 @@ class WebSocketClient(CommunicationBackend):
             await self._http_base.setup()
         self._aws = await self._http_base.upgrade_ws()
         if self._aws is None:
-            print('failed to create ws from http client')
+            logger.critical('failed to create ws from http client')
             raise CommunicationBackend.SetupFailed()
         return WSClientAPI(self)
 
@@ -58,25 +59,25 @@ class WebSocketClient(CommunicationBackend):
             try:
                 msg = await self._aws.receive()
                 if msg.type == aiohttp.WSMsgType.error:
-                    print(msg)
+                    logger.error(msg)
                     # TODO: should we do something here?
                 elif msg.type == aiohttp.WSMsgType.closed:
-                    print(self._aws.exception())
+                    logger.error(self._aws.exception())
                     while True:
                         try:
-                            print('WebSocket disconnected. wait 10s before reconnect')
+                            logger.info('WebSocket disconnected. wait 10s before reconnect')
                             await asyncio.sleep(10)
                             self._aws = await self._http_base.upgrade_ws()
                             if self._aws is None:
-                                print('retrying...')
+                                logger.info('retrying...')
                             else:
-                                print('successfully reconnected')
+                                logger.success('successfully reconnected')
                                 break
                         except asyncio.CancelledError:
-                            print('reconnecting canceled')
+                            logger.info('reconnecting canceled')
                             return
                         except Exception as e:
-                            print(e)
+                            logger.error(e)
                 elif msg.type == aiohttp.WSMsgType.text:
                     if self._on_text_cb is not None:
                         self._on_text_cb(msg.data)
@@ -84,7 +85,7 @@ class WebSocketClient(CommunicationBackend):
                     if self._on_bin_cb is not None:
                         self._on_bin_cb(msg.data)
             except asyncio.CancelledError:
-                print('WebSocket client stopped')
+                logger.success('WebSocket client stopped')
                 await self._aws.close()
                 return
 
@@ -114,7 +115,7 @@ class WSClientAPI:
             await self._ws._aws.send_str(data)
             return True
         except Exception as e:
-            print(e)
+            logger.error(e)
             return False
 
     async def send_binary_message(self, data: bytes) -> typing.Any:
@@ -122,5 +123,5 @@ class WSClientAPI:
             await self._ws._aws.send_bytes(data)
             return True
         except Exception as e:
-            print(e)
+            logger.error(e)
             return False

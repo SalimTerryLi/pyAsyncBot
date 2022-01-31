@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .Bot import Bot
 
+from loguru import logger
 import typing
 
 from .BotConfig import BotConfig
@@ -56,14 +57,14 @@ class CommunicationWare:
             try:
                 ret['http_client'] = await self._commus['http_client'].setup()
             except CommunicationBackend.SetupFailed as e:
-                print('failed to setup http_client')
+                logger.error('failed to setup http_client')
                 await self.cleanup()
                 raise e
         if 'ws_client' in self._commus:
             try:
                 ret['ws_client'] = await self._commus['ws_client'].setup()
             except CommunicationBackend.SetupFailed as e:
-                print('failed to setup ws_client')
+                logger.error('failed to setup ws_client')
                 await self.cleanup()
                 raise e
         return ret
