@@ -196,6 +196,9 @@ class Group(Channel):
         for uid in self._members_tmp:
             if uid not in self._members:
                 logger.warning('member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
+            else:
+                # use cached version
+                self._members[uid] = self._members_tmp[uid]
         self._members_tmp = None
 
 
@@ -272,6 +275,8 @@ class Contacts:
         for uid in self._friends_tmp:
             if uid not in self._friends:
                 logger.warning('friend {uid} doesn\' t exist'.format(uid=uid))
+            # use cached version
+            self._friends[uid] = self._friends_tmp[uid]
         self._friends_tmp = None
 
     async def get_group(self, id: int, name: str = None) -> Union[Group, None]:
@@ -337,4 +342,7 @@ class Contacts:
         for gid in self._groups_tmp:
             if gid not in self._groups:
                 logger.warning('group {gid} doesn\' t exist'.format(gid=gid))
+            else:
+                # use cached version
+                self._groups[gid] = self._groups_tmp[gid]
         self._groups_tmp = None
