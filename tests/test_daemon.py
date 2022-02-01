@@ -40,7 +40,6 @@ async def on_group_message(msg: ReceivedMessage):
         await replied.revoke()
 
 
-
 @bot.on_private_revoke
 async def on_private_revoke(msg):
     print(msg)
