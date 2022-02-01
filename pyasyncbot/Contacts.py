@@ -13,11 +13,31 @@ from typing import Union, Dict, Any
 from abc import ABC, abstractmethod
 
 
-class Channel(ABC):
+class User:
+    def __init__(self, uid: int, name: str):
+        self._id = uid
+        self._name = name
+
+    def __eq__(self, other):
+        if type(other) == User:
+            return self._id == other._uid
+        elif type(other) == int:
+            return self._id == other
+        return False
+
+    def get_id(self):
+        return self._id
+
+    def get_name(self):
+        return self._name
+
+
+class Channel(User, ABC):
     """
     Where messaging tasks is capable
     """
-    def __init__(self, contacts: Contacts):
+    def __init__(self, contacts: Contacts, uid: int, nickname: str):
+        super().__init__(uid, nickname)
         self._contacts: Contacts = contacts
 
     @abstractmethod
@@ -41,35 +61,15 @@ class Channel(ABC):
         pass
 
 
-class User:
-    def __init__(self, uid: int, nickname: str):
-        self._uid = uid
-        self._nick = nickname
-
-    def __eq__(self, other):
-        if type(other) == User:
-            return self._uid == other._uid
-        elif type(other) == int:
-            return self._uid == other
-        return False
-
-    def get_id(self):
-        return self._uid
-
-    def get_nick_name(self):
-        return self._nick
-
-
-class Friend(User, Channel):
+class Friend(Channel):
     def __init__(self, contact: Contacts, uid: int, nickname: str):
-        User.__init__(self, uid, nickname)
-        Channel.__init__(self, contact)
+        Channel.__init__(self, contact, uid, nickname)
 
     def __str__(self):
         return dumps({
             'type': 'Friend',
             'id': self.get_id(),
-            'nick': self.get_nick_name()
+            'nick': self.get_name()
         }, ensure_ascii=False)
 
     async def send_msg(self, content: MessageContent) -> SentMessage:
@@ -86,25 +86,24 @@ class Friend(User, Channel):
         return await self._contacts._proto_wrapper.serv_private_revoke(self.get_id(), msgid)
 
 
-class Stranger(User, Channel):
+class Stranger(Channel):
     def __init__(self, contact: Contacts, uid: int, nickname: str, gid: int = None):
-        User.__init__(self, uid, nickname)
-        Channel.__init__(self, contact)
+        Channel.__init__(self, contact, uid, nickname)
         self._gid = gid
 
     def __str__(self):
         return dumps({
             'type': 'Stranger',
             'id': self.get_id(),
-            'nick': self.get_nick_name(),
+            'nick': self.get_name(),
             'from_group_id': self._gid
         }, ensure_ascii=False)
 
     async def send_msg(self, content: MessageContent) -> SentMessage:
-        pass
+        raise Exception('Not implemented')
 
     async def revoke_msg(self, msgid: str) -> bool:
-        pass
+        raise Exception('Not implemented')
 
 
 class GroupMember(User):
@@ -117,7 +116,7 @@ class GroupMember(User):
         return dumps({
             'type': 'GroupMember',
             'group_id': self._gid,
-            'nick': self.get_nick_name(),
+            'nick': self.get_name(),
             'sender_id': self.get_id(),
         }, ensure_ascii=False)
 
@@ -127,16 +126,10 @@ class GroupMember(User):
 
         Else will return a Stranger instance instead
         """
-        ret = await self._contact.get_friend(self._uid)
+        ret = await self._contact.get_friend(self._id)
         if ret is None:
-            ret = Stranger(self._contact, self._uid, self._nick, self._gid)
+            ret = Stranger(self._contact, self._id, self._name, self._gid)
         return ret
-
-    async def send_msg(self, content: MessageContent) -> SentMessage:
-        pass
-
-    async def revoke_msg(self, msgid: str) -> bool:
-        pass
 
 
 class GroupAnonymousMember(User):
@@ -149,43 +142,42 @@ class GroupAnonymousMember(User):
         return dumps({
             'type': 'GroupAnonymousMember',
             'group_id': self._gid,
-            'nick': self.get_nick_name(),
+            'nick': self.get_name(),
             'anonymous_id': self.get_id(),
         }, ensure_ascii=False)
-
-    async def send_msg(self, content: MessageContent) -> SentMessage:
-        pass
-
-    async def revoke_msg(self, msgid: str) -> bool:
-        pass
 
 
 class Group(Channel):
     def __init__(self, contact: Contacts, gid: int, name: str):
-        super().__init__(contact)
-        self._gid = gid
-        self._name = name
+        super().__init__(contact, gid, name)
         self._members: Dict[int, GroupMember] = None
         self._members_tmp: Dict[int, GroupMember] = dict()
 
     def __eq__(self, other):
         if type(other) == Group:
-            return self._gid == other._gid
+            return self._id == other._gid
         elif type(other) == int:
-            return self._gid == other
+            return self._id == other
         return False
 
     def __str__(self):
         return str({
-            'group_id': self._gid,
+            'group_id': self._id,
             'name': self._name
         })
 
     async def send_msg(self, content: MessageContent) -> SentMessage:
-        pass
+        msgid = await self._contacts._proto_wrapper.serv_group_message(self._id, content)
+        if msgid is None:
+            return None
+        else:
+            ret = SentMessage()
+            ret._msgid = msgid
+            ret._channel = self
+            return ret
 
     async def revoke_msg(self, msgid: str) -> bool:
-        pass
+        return await self._contacts._proto_wrapper.serv_group_revoke(self.get_id(), msgid)
 
     async def get_member(self, id: int, nick: str = None) -> Union[GroupMember, None]:
         """
@@ -205,19 +197,19 @@ class Group(Channel):
             if nick is None:
                 # no nick is provided so that the whole member list must be obtained
                 self._members = dict()
-                for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
-                    self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
+                for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._id)).items():
+                    self._members[uid] = GroupMember(self._contacts, uid, nick, self._id)
                 logger.debug('group member list initially forced fetched for {gid}, with {size} entries'.format(
-                    gid=self._gid, size=len(self._members))
+                    gid=self._id, size=len(self._members))
                 )
                 # disable the cached list
                 self.__disable_cached_member_list()
                 # return the requested member below later
             else:
                 # nick is also provided so that we find or create a mock member object
-                self._members_tmp[id] = GroupMember(self._contacts, id, nick, self._gid)
+                self._members_tmp[id] = GroupMember(self._contacts, id, nick, self._id)
                 logger.debug('mocked group member list of {gid}: append {uid}, total {size}'.format(
-                    gid=self._gid, uid=id,size=len(self._members_tmp)))
+                    gid=self._id, uid=id, size=len(self._members_tmp)))
                 return self._members_tmp[id]
         else:
             # always use the populated list
@@ -235,10 +227,10 @@ class Group(Channel):
         # always make sure the list is available
         if self._members is None:
             self._members = dict()
-            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._gid)).items():
-                self._members[uid] = GroupMember(self._contacts, uid, nick, self._gid)
+            for uid, nick in (await self._contacts._proto_wrapper.get_group_members(self._id)).items():
+                self._members[uid] = GroupMember(self._contacts, uid, nick, self._id)
             logger.debug('group member list initially fetched for {gid}, with {size} entries'.format(
-                gid=self._gid, size=len(self._members))
+                gid=self._id, size=len(self._members))
             )
         if self._members_tmp is not None:
             # there's something in cache, check and cleanup
@@ -246,10 +238,10 @@ class Group(Channel):
         return self._members
 
     def __disable_cached_member_list(self):
-        logger.debug('group {gid} member cached list disabled'.format(gid=self._gid))
+        logger.debug('group {gid} member cached list disabled'.format(gid=self._id))
         for uid in self._members_tmp:
             if uid not in self._members:
-                logger.warning('member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._gid))
+                logger.warning('member {uid} doesn\' t exist in group {gid}'.format(uid=uid, gid=self._id))
             else:
                 # use cached version
                 self._members[uid] = self._members_tmp[uid]

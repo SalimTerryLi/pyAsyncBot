@@ -32,9 +32,13 @@ async def on_private_message(msg: ReceivedMessage):
 
 
 @bot.on_group_message
-async def on_group_message(msg):
+async def on_group_message(msg: ReceivedMessage):
     print(msg)
-    await asyncio.sleep(5)
+    if msg.get_channel().get_id() == 934358995:
+        replied = await msg.reply(msg.get_content())
+        await asyncio.sleep(5)
+        await replied.revoke()
+
 
 
 @bot.on_private_revoke

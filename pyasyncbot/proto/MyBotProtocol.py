@@ -279,7 +279,20 @@ class MyBotProtocol(Protocol):
             return None
 
     async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False, reply: RepliedMessageContent = None) -> str:
-        pass
+        post_data = {
+            'dest': id,
+            'msgContent': self.generate_message_content(msg_content),
+            'reply': self.generate_reply_content(reply)
+        }
+        if reply is None:
+            del post_data['reply']
+        resp = await self._http_hdl.post('/sendMsg/group', ujson.dumps(post_data),
+                                         headers={'content-type': 'application/json'})
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return resp['msgID']
+        else:
+            return None
 
     async def serv_private_revoke(self, id: int, msgid: str) -> bool:
         resp = await self._http_hdl.post('/revoke/private',
@@ -296,11 +309,15 @@ class MyBotProtocol(Protocol):
             return False
 
     async def serv_group_revoke(self, id: int, msgid: str) -> bool:
-        """
-        Override this function to implement group message revoking
-
-        :param id: group id
-        :param msgid: message id
-        :return: True if success
-        """
-        pass
+        resp = await self._http_hdl.post('/revoke/group',
+                                         ujson.dumps({
+                                             'channel': id,
+                                             'msgID': msgid,
+                                         }),
+                                         headers={'content-type': 'application/json'}
+                                         )
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return True
+        else:
+            return False
