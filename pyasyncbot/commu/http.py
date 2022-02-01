@@ -53,3 +53,10 @@ class HTTPClientAPI:
                 port=self.__base._port,
                 path=path,
             ), allow_redirects=allow_redirects, **kwargs)
+
+    async def post(self, path: str, data: typing.Any = None, **kwargs: typing.Any) -> aiohttp.ClientResponse:
+        return await self.__base._ahttp.post('http://{addr}:{port}{path}'.format(
+                addr=self.__base._addr,
+                port=self.__base._port,
+                path=path,
+            ), data=data, **kwargs)

@@ -2,25 +2,42 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .Message import MessageContent, SentMessage
+    from .Message import MessageContent
     from .FrameworkWrapper import ProtocolWrapper
+
+from .Message import SentMessage
 
 from loguru import logger
 from ujson import dumps
 from typing import Union, Dict, Any
+from abc import ABC, abstractmethod
 
 
-class Channel:
+class Channel(ABC):
     """
     Where messaging tasks is capable
     """
     def __init__(self, contacts: Contacts):
         self._contacts: Contacts = contacts
 
+    @abstractmethod
     async def send_msg(self, content: MessageContent) -> SentMessage:
+        """
+        Override this function to implement message sending
+
+        :param content: msg content
+        :return: sent message, or None if failed
+        """
         pass
 
+    @abstractmethod
     async def revoke_msg(self, msgid: str) -> bool:
+        """
+        Override this function to implement message revoking
+
+        :param msgid: msg ID
+        :return: success
+        """
         pass
 
 
@@ -55,6 +72,19 @@ class Friend(User, Channel):
             'nick': self.get_nick_name()
         }, ensure_ascii=False)
 
+    async def send_msg(self, content: MessageContent) -> SentMessage:
+        msgid = await self._contacts._proto_wrapper.serv_private_message(self.get_id(), content)
+        if msgid is None:
+            return None
+        else:
+            ret = SentMessage()
+            ret._msgid = msgid
+            ret._channel = self
+            return ret
+
+    async def revoke_msg(self, msgid: str) -> bool:
+        return await self._contacts._proto_wrapper.serv_private_revoke(self.get_id(), msgid)
+
 
 class Stranger(User, Channel):
     def __init__(self, contact: Contacts, uid: int, nickname: str, gid: int = None):
@@ -69,6 +99,12 @@ class Stranger(User, Channel):
             'nick': self.get_nick_name(),
             'from_group_id': self._gid
         }, ensure_ascii=False)
+
+    async def send_msg(self, content: MessageContent) -> SentMessage:
+        pass
+
+    async def revoke_msg(self, msgid: str) -> bool:
+        pass
 
 
 class GroupMember(User):
@@ -96,6 +132,12 @@ class GroupMember(User):
             ret = Stranger(self._contact, self._uid, self._nick, self._gid)
         return ret
 
+    async def send_msg(self, content: MessageContent) -> SentMessage:
+        pass
+
+    async def revoke_msg(self, msgid: str) -> bool:
+        pass
+
 
 class GroupAnonymousMember(User):
     def __init__(self, contact: Contacts, uid: int, nickname: str, gid: int):
@@ -110,6 +152,12 @@ class GroupAnonymousMember(User):
             'nick': self.get_nick_name(),
             'anonymous_id': self.get_id(),
         }, ensure_ascii=False)
+
+    async def send_msg(self, content: MessageContent) -> SentMessage:
+        pass
+
+    async def revoke_msg(self, msgid: str) -> bool:
+        pass
 
 
 class Group(Channel):
@@ -132,6 +180,12 @@ class Group(Channel):
             'group_id': self._gid,
             'name': self._name
         })
+
+    async def send_msg(self, content: MessageContent) -> SentMessage:
+        pass
+
+    async def revoke_msg(self, msgid: str) -> bool:
+        pass
 
     async def get_member(self, id: int, nick: str = None) -> Union[GroupMember, None]:
         """

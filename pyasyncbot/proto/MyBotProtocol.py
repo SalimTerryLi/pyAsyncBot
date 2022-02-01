@@ -121,6 +121,57 @@ class MyBotProtocol(Protocol):
         )
         return ret
 
+    @staticmethod
+    def generate_message_content(msg_content: MessageContent) -> list:
+        ret = []
+        for msg in msg_content._msgs:
+            if isinstance(msg, TextSegment):
+                ret.append({
+                    'type': 'text',
+                    'text': msg._text
+                })
+            elif isinstance(msg, ImageSegment):
+                seg = {'type': 'image'}
+                if msg._url != '':
+                    seg['url'] = msg._url
+                else:
+                    seg['base64'] = msg._base64
+                ret.append(seg)
+            elif isinstance(msg, EmojiSegment):
+                ret.append({
+                    'type': 'emoji',
+                    'id': msg._id
+                })
+            elif isinstance(msg, MentionSegment):
+                ret.append({
+                    'type': 'mention',
+                    'target': msg._target
+                })
+            elif isinstance(msg, GroupedSegment):
+                ret.append({
+                    'type': 'forwarded',
+                    'id': msg._grouped_msg_id
+                })
+            elif isinstance(msg, ApplicationSegment):
+                ret.append({
+                    'type': msg._type,
+                    'data': msg._data
+                })
+            else:
+                logger.error('unsupported msg segment: ' + str(type(msg)))
+        return ret
+
+    @staticmethod
+    def generate_reply_content(replied_content: RepliedMessageContent) -> dict:
+        if replied_content is None:
+            return None
+        return {
+            'to': replied_content.to_uid,
+            'time': replied_content.time.timestamp(),
+            'id': replied_content.to_msgid,
+            'summary': replied_content.text
+        }
+
     async def parse_revoke(self, data: dict):
         if data['type'] == 'private':
             await self._bot_wrapper.deliver_private_revoke(
@@ -208,3 +259,48 @@ class MyBotProtocol(Protocol):
             else:
                 raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getGroupList')
         raise Exception('unexpected result from /user/getGroupList')
+
+    async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None, reply: RepliedMessageContent = None) -> str:
+        post_data = {
+            'dest': id,
+            'from': from_channel,
+            'msgContent': self.generate_message_content(msg_content),
+            'reply': self.generate_reply_content(reply)
+        }
+        if from_channel is None:
+            del post_data['from']
+        if reply is None:
+            del post_data['reply']
+        resp = await self._http_hdl.post('/sendMsg/private', ujson.dumps(post_data), headers={'content-type': 'application/json'})
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return resp['msgID']
+        else:
+            return None
+
+    async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False, reply: RepliedMessageContent = None) -> str:
+        pass
+
+    async def serv_private_revoke(self, id: int, msgid: str) -> bool:
+        resp = await self._http_hdl.post('/revoke/private',
+                                         ujson.dumps({
+                                             'channel': id,
+                                             'msgID': msgid,
+                                         }),
+                                         headers={'content-type': 'application/json'}
+                                         )
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return True
+        else:
+            return False
+
+    async def serv_group_revoke(self, id: int, msgid: str) -> bool:
+        """
+        Override this function to implement group message revoking
+
+        :param id: group id
+        :param msgid: message id
+        :return: True if success
+        """
+        pass

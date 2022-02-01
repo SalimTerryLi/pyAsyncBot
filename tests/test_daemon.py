@@ -4,6 +4,7 @@ import asyncio
 from context import pyasyncbot
 
 from pyasyncbot import Bot, BotConfig
+from pyasyncbot.Message import ReceivedMessage
 import signal
 
 bot = Bot(BotConfig(
@@ -23,8 +24,11 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 @bot.on_private_message
-async def on_private_message(msg):
+async def on_private_message(msg: ReceivedMessage):
     print(msg)
+    replied = await msg.reply(msg.get_content())
+    await asyncio.sleep(5)
+    await replied.revoke()
 
 
 @bot.on_group_message

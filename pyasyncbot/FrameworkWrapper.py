@@ -9,7 +9,7 @@ import typing
 from abc import ABC, abstractmethod
 import datetime
 
-from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage
+from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, SentMessage
 from .MsgContent import GroupedSegment
 from .Contacts import Friend, Stranger, GroupMember, GroupAnonymousMember, Group
 
@@ -240,6 +240,55 @@ class ProtocolWrapper(ABC):
     """
     Defines a set of 'flat' APIs that bot protocol must implement and provide, so that bot framework can make requests.
     """
+
+    @abstractmethod
+    async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None, reply: RepliedMessageContent = None) -> str:
+        """
+        Override this function to implement private message sending
+
+        :param id: user id
+        :param msg_content: msg content obj
+        :param from_channel: optional reference channel id
+        :param reply: reply context
+        :return: msgID or None if failed
+        """
+        pass
+
+    @abstractmethod
+    async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False, reply: RepliedMessageContent = None) -> str:
+        """
+        Override this function to implement group message sending
+
+        :param id: group id
+        :param msg_content: msg content obj
+        :param as_anonymous: send as anonymous
+        :param reply: reply context
+        :return: msgID or None if failed
+        """
+        pass
+
+    @abstractmethod
+    async def serv_private_revoke(self, id: int, msgid: str) -> bool:
+        """
+        Override this function to implement private message revoking
+
+        :param id: user id
+        :param msgid: message id
+        :return: True if success
+        """
+        pass
+
+    @abstractmethod
+    async def serv_group_revoke(self, id: int, msgid: str) -> bool:
+        """
+        Override this function to implement group message revoking
+
+        :param id: group id
+        :param msgid: message id
+        :return: True if success
+        """
+        pass
+
     @abstractmethod
     async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
         """
