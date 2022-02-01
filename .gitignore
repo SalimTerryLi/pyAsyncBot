@@ -1,8 +1,13 @@
+# we use .venv dir as dev venv folder
 /venv
 
+# py cache
 __pycache__
 
+# PyCharm things
 /.idea
 
-/oicq_web.egg-info
-
+# build and deploy things
+/*.egg-info
+/build
+/dist
