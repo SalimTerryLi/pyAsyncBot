@@ -64,11 +64,14 @@ class MyBotProtocol(Protocol):
                 time=datetime.datetime.fromtimestamp(msgdata['time']),
                 sender_id=msgdata['sender'],
                 sender_nick=msgdata['sender_nick'],
+                channel_id=msgdata['channel'],
+                channel_nick=msgdata['channel_name'],
                 msgid=msgdata['msgID'],
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                summary=msgdata['msgString'],
                 is_friend=msgdata['known'],
-                from_channel=msgdata['channel'],
-                from_channel_name=msgdata['channel_name'],
+                from_channel=msgdata['ref_channel'],
+                from_channel_name=msgdata['ref_channel_name'],
                 reply=reply
             )
         elif msgdata['type'] == 'group':
@@ -83,6 +86,7 @@ class MyBotProtocol(Protocol):
                 group_name=msgdata['channel_name'],
                 msgid=msgdata['msgID'],
                 msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                summary=msgdata['msgString'],
                 is_anonymous=not msgdata['known'],
                 reply=reply
             )
@@ -194,14 +198,29 @@ class MyBotProtocol(Protocol):
 
     # below are abstract interfaces from protocol wrapper
 
-    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
+    async def query_packed_msg(self, id: str) -> typing.List[GroupedSegment.ContextFreeMessage]:
         """
         Override this function to implement content querying of packed message
 
         :param id: packed msgid
         :return: context-free message obj
         """
-        pass
+        resp = await self._http_hdl.get('/mesg/parseForwardedMsg', params={'id': id})
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                ret = []
+                for msg in data['msgs']:
+                    ret.append(GroupedSegment.ContextFreeMessage(
+                        id=msg['id'],
+                        time=msg['time'],
+                        nickname=msg['nickname'],
+                        content=MyBotProtocol.parse_msg_content(msg['msgContent'])
+                    ))
+                return ret
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + 'on /mesg/parseForwardedMsg')
+        raise Exception('unexpected result from /mesg/parseForwardedMsg')
 
     async def get_friend_list(self) -> typing.Dict[int, str]:
         """

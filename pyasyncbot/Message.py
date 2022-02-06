@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 import datetime
 from typing import Union
+import ast
 
 from .MsgContent import *
 
@@ -60,11 +61,12 @@ class ReceivedMessage:
     def __init__(self, contacts):
         self.__contacts = contacts
         self._time: datetime.datetime = None
-        self._channel: Channel = None
+        self._channel: Union[Friend, Stranger, Group] = None
         self._sender: Union[Friend, Stranger, GroupMember, GroupAnonymousMember] = None
         self._msgID: str = None
         self._msgContent: MessageContent = None
         self._reply: RepliedMessage = None
+        self._summary: str = None
 
     def __str__(self):
         return str({
@@ -75,24 +77,6 @@ class ReceivedMessage:
             'msgContent': str(self._msgContent),
             'reply_to': str(self._reply),
         })
-
-    def get_channel(self) -> Channel:
-        """
-        Get the channel this message comes from
-
-        May be the same as get_sender() if it is a private message
-
-        :return: channel obj
-        """
-        return self._channel
-
-    def get_sender(self) -> Union[Friend, Stranger, GroupMember, GroupAnonymousMember]:
-        """
-        Get the sender of this message, either a friend or someone from a group
-
-        :return: sender object
-        """
-        return self._sender
 
     def get_content(self) -> MessageContent:
         """
@@ -135,6 +119,59 @@ class ReceivedMessage:
         :return: msgID of reply msg or None if failed
         """
         pass
+
+
+class ReceivedPrivateMessage(ReceivedMessage):
+    def __init__(self, contacts):
+        super().__init__(contacts)
+        self._ref_channel: Group = None
+
+    def __str__(self):
+        dictionary = ast.literal_eval(super().__str__())
+        dictionary['ref_channel'] = str(self._ref_channel)
+        return str(dictionary)
+
+    def get_ref_channel(self) -> Union[Group, None]:
+        """
+        If the message is from a stranger, then the group he started the private channel can be fetched here.
+
+        :return: Group or None
+        """
+        return self._ref_channel
+
+    def get_channel(self) -> Union[Friend, Stranger]:
+        """
+        Get the channel this message comes from
+
+        :return: channel obj
+        """
+        return self._channel
+
+    def get_sender(self) -> Union[Friend, Stranger]:
+        """
+        Get the sender of this message
+
+        :return: sender object
+        """
+        return self._sender
+    
+
+class ReceivedGroupMessage(ReceivedMessage):
+    def get_channel(self) -> Group:
+        """
+        Get the group this message comes from
+
+        :return: channel obj
+        """
+        return self._channel
+
+    def get_sender(self) -> Union[GroupMember, GroupAnonymousMember]:
+        """
+        Get the sender of this message
+
+        :return: sender object
+        """
+        return self._sender
 
 
 class SentMessage:

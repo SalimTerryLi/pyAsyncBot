@@ -9,7 +9,7 @@ import typing
 from abc import ABC, abstractmethod
 import datetime
 
-from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, SentMessage
+from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, SentMessage, ReceivedPrivateMessage, ReceivedGroupMessage
 from .MsgContent import GroupedSegment
 from .Contacts import Friend, Stranger, GroupMember, GroupAnonymousMember, Group
 
@@ -32,39 +32,45 @@ class BotWrapper:
         """
         return self.__bot._create_bot_task(coro, name)
 
-    async def deliver_private_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str, msgid: str,
-                                  msgcontent: MessageContent, is_friend: bool = True, from_channel: int = None,
+    async def deliver_private_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str,
+                                  channel_id: int, channel_nick: str, msgid: str,
+                                  msgcontent: MessageContent, summary: str, is_friend: bool = True, from_channel: int = None,
                                   from_channel_name: str = None, reply: RepliedMessageContent = None):
         """
         Call this func to deliver a private message event to bot payload
 
         :param time: time of message
-        :param sender_id: user id
-        :param sender_nick: user nickname in the channel
+        :param sender_id: who sent the message
+        :param sender_nick: his nickname
+        :param channel_id: where the message from
+        :param channel_nick: his nick
         :param msgid: msg id
         :param msgcontent: parsed msg content object
+        :param summary: summary of message, used to generate reply
         :param is_friend: friend, or stranger
         :param from_channel: If it is from a stranger then this field is the group that the one is from
         :param from_channel_name: as above, the group name
         :param reply: parsed reply info object
         """
-        msg: ReceivedMessage = ReceivedMessage(self.__bot.get_contacts())
+        msg: ReceivedMessage = ReceivedPrivateMessage(self.__bot.get_contacts())
         msg._time = time
         msg._msgID = msgid
         msg._msgContent = msgcontent
+        msg._summary = summary
         msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
         if is_friend:
-            msg._channel = await self.__bot.get_contacts().get_friend(sender_id, sender_nick)
-            msg._sender = msg._channel
+            msg._channel = await self.__bot.get_contacts().get_friend(channel_id, channel_nick)
+            msg._sender = await self.__bot.get_contacts().get_friend(sender_id, sender_nick)
         else:
-            msg._channel = await self.__bot.get_contacts().get_group(from_channel, from_channel_name)
-            msg._sender = await (await msg._channel.get_member(sender_id, sender_nick)).open_private_channel()
+            msg._ref_channel = await self.__bot.get_contacts().get_group(from_channel, from_channel_name)
+            msg._channel = await (await msg._ref_channel.get_member(channel_id, channel_nick)).open_private_channel()
+            msg._sender = await (await msg._ref_channel.get_member(sender_id, sender_nick)).open_private_channel()
 
         if self.__bot._on_private_msg_cb is not None:
             await self.__bot._on_private_msg_cb(msg)
 
     async def deliver_group_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str, group_id: int,
-                                group_name: str, msgid: str, msgcontent: MessageContent,
+                                group_name: str, msgid: str, msgcontent: MessageContent, summary: str,
                                 is_anonymous: bool = False,
                                 reply: RepliedMessageContent = None):
         """
@@ -77,13 +83,15 @@ class BotWrapper:
         :param group_name: group name
         :param msgid: msg id
         :param msgcontent: parsed msg content object
+        :param summary: summary of message, used to generate reply
         :param is_anonymous: is sender anonymous
         :param reply: parsed reply info object
         """
-        msg: ReceivedMessage = ReceivedMessage(self.__bot._contacts)
+        msg: ReceivedMessage = ReceivedGroupMessage(self.__bot._contacts)
         msg._time = time
         msg._msgID = msgid
         msg._msgContent = msgcontent
+        msg._summary = summary
         msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
         if is_anonymous:
             msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
@@ -290,7 +298,7 @@ class ProtocolWrapper(ABC):
         pass
 
     @abstractmethod
-    async def query_packed_msg(self, id: str) -> GroupedSegment.ContextFreeMessage:
+    async def query_packed_msg(self, id: str) -> typing.List[GroupedSegment.ContextFreeMessage]:
         """
         Override this function to implement content querying of packed message
 

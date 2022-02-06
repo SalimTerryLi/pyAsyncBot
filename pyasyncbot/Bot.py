@@ -9,7 +9,7 @@ import asyncio
 import traceback
 import sys
 
-from .Message import ReceivedMessage, RevokedMessage
+from .Message import ReceivedPrivateMessage, ReceivedGroupMessage, RevokedMessage
 from .CommunicationWare import CommunicationWare
 from .commu.CommunicationBackend import CommunicationBackend
 from .FrameworkWrapper import BotWrapper
@@ -39,8 +39,8 @@ class Bot:
         self._contacts = None                                   # Get filled run-timely
 
         # registered callbacks
-        self._on_private_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
-        self._on_group_msg_cb: typing.Callable[[ReceivedMessage], typing.Awaitable[None]] = None
+        self._on_private_msg_cb: typing.Callable[[ReceivedPrivateMessage], typing.Awaitable[None]] = None
+        self._on_group_msg_cb: typing.Callable[[ReceivedGroupMessage], typing.Awaitable[None]] = None
         self._on_private_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
         self._on_group_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
 

@@ -192,6 +192,9 @@ class Group(Channel):
             # member list is not populated
             if id in self._members_tmp:
                 # but the member is in cache, that's all
+                if nick is not None:
+                    # always update nick if possible
+                    self._members_tmp[id]._name = nick
                 return self._members_tmp[id]
             # if that member is also not in cache, so that we must get one
             if nick is None:
@@ -215,6 +218,9 @@ class Group(Channel):
             # always use the populated list
             pass
         if id in self._members:
+            if nick is not None:
+                # always update nick if possible
+                self._members[id]._name = nick
             return self._members[id]
         return None
 
@@ -272,6 +278,9 @@ class Contacts:
             # friend list is not populated
             if id in self._friends_tmp:
                 # but the friend is in cache, that's all
+                if nick is not None:
+                    # always update nick if possible
+                    self._friends_tmp[id]._name = nick
                 return self._friends_tmp[id]
             # if that member is also not in cache, so that we must get one
             if nick is None:
@@ -294,6 +303,9 @@ class Contacts:
             # always use the populated list
             pass
         if id in self._friends:
+            if nick is not None:
+                # always update nick if possible
+                self._friends[id]._name = nick
             return self._friends[id]
         return None
 
@@ -339,6 +351,9 @@ class Contacts:
             # group list is not populated
             if id in self._groups_tmp:
                 # but the friend is in cache, that's all
+                if name is not None:
+                    # always update nick if possible
+                    self._groups_tmp[id]._name = name
                 return self._groups_tmp[id]
             # if that member is also not in cache, so that we must get one
             if name is None:
@@ -361,6 +376,9 @@ class Contacts:
             # always use the populated list
             pass
         if id in self._groups:
+            if name is not None:
+                # always update nick if possible
+                self._groups[id]._name = name
             return self._groups[id]
         return None
 

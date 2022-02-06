@@ -4,7 +4,7 @@ import asyncio
 from context import pyasyncbot
 
 from pyasyncbot import Bot, BotConfig
-from pyasyncbot.Message import ReceivedMessage
+from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage
 import signal
 
 bot = Bot(BotConfig(
@@ -24,7 +24,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 @bot.on_private_message
-async def on_private_message(msg: ReceivedMessage):
+async def on_private_message(msg: ReceivedPrivateMessage):
     print(msg)
     replied = await msg.reply(msg.get_content())
     await asyncio.sleep(5)
@@ -32,7 +32,7 @@ async def on_private_message(msg: ReceivedMessage):
 
 
 @bot.on_group_message
-async def on_group_message(msg: ReceivedMessage):
+async def on_group_message(msg: ReceivedGroupMessage):
     print(msg)
     if msg.get_channel().get_id() == 934358995:
         replied = await msg.reply(msg.get_content())

@@ -223,7 +223,7 @@ class GroupedSegment(MessageSegment):
         :param bot: bot context
         :return: a list of context-free messages
         """
-        pass
+        return await bot._contacts._proto_wrapper.query_packed_msg(self._grouped_msg_id)
 
     def __str__(self):
         return '[Grouped:{id}]'.format(id=self._grouped_msg_id)
