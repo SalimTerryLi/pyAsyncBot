@@ -10,6 +10,7 @@ import traceback
 import sys
 
 from .Message import ReceivedPrivateMessage, ReceivedGroupMessage, RevokedMessage
+from .Event import BotEvent
 from .CommunicationWare import CommunicationWare
 from .commu.CommunicationBackend import CommunicationBackend
 from .FrameworkWrapper import BotWrapper
@@ -43,6 +44,8 @@ class Bot:
         self._on_group_msg_cb: typing.Callable[[ReceivedGroupMessage], typing.Awaitable[None]] = None
         self._on_private_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
         self._on_group_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
+
+        self._on_event_cb: typing.Callable[[BotEvent], typing.Awaitable[None]] = None
 
     def __del__(self):
         pass
@@ -97,8 +100,7 @@ class Bot:
         self._async_loop = asyncio.get_running_loop()
         logger.info('main task started')
         ret = await self._run()
-        logger.info('main task exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
-        await asyncio.gather(*self.__task_set)
+
         logger.info('all tasks exited')
         return ret
 
@@ -153,6 +155,9 @@ class Bot:
         # wait until the daemon task finished
         await commu_task
 
+        logger.info('commu tasks exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
+        await asyncio.gather(*self.__task_set)
+
         # do cleanups
         await bot_protocol.cleanup()
         await self._commuware.cleanup()
@@ -196,3 +201,11 @@ class Bot:
         if self._on_group_revoke_cb is not None:
             logger.warning('overwrite _on_group_revoke_cb')
         self._on_group_revoke_cb = deco
+
+    def on_event(self, deco):
+        """
+        Register event callback
+        """
+        if self._on_event_cb is not None:
+            logger.warning('overwrite _on_event_cb')
+        self._on_event_cb = deco

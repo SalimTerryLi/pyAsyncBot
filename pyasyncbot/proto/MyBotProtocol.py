@@ -11,6 +11,7 @@ import ujson
 from ..commu.http import HTTPClientAPI
 from ..Message import *
 from .Protocol import Protocol, BotWrapper
+from ..Event import *
 
 
 class MyBotProtocol(Protocol):
@@ -52,6 +53,12 @@ class MyBotProtocol(Protocol):
                 self._bot_wrapper.create_task(self.parse_msg(msg_dict['data']), 'push_event_worker')
             elif msg_dict['type'] == 'revoke':
                 self._bot_wrapper.create_task(self.parse_revoke(msg_dict['data']), 'push_event_worker')
+            elif msg_dict['type'] == 'user':
+                self._bot_wrapper.create_task(self.parse_user_event(msg_dict['data']), 'push_event_worker')
+            elif msg_dict['type'] == 'group':
+                self._bot_wrapper.create_task(self.parse_group_event(msg_dict['data']), 'push_event_worker')
+            else:
+                logger.warning('Unsupported packet type: ' + msg_dict['type'])
         except ValueError as e:
             logger.error(e)
 
@@ -196,6 +203,49 @@ class MyBotProtocol(Protocol):
         else:
             logger.error('unsupported revoke.type: ' + data['type'])
 
+    async def parse_user_event(self, data: dict):
+        if data['type'] == 'online':
+            await self._bot_wrapper.process_bot_online_event()
+        elif data['type'] == 'offline':
+            await self._bot_wrapper.process_bot_offline_event()
+        elif data['type'] == 'newFriendRequest':
+            refsrc = None
+            if data['source'] != 0:
+                refsrc = data['source']
+            await self._bot_wrapper.process_new_friend_request_event(data['who'], data['nick'], data['comment'], data['eventID'], refsrc)
+        elif data['type'] == 'groupInvite':
+            await self._bot_wrapper.process_group_invitation_event(data['group'], data['groupName'], data['inviter'], data['eventID'])
+        elif data['type'] == 'friendAdded':
+            await self._bot_wrapper.process_friend_added_event(data['who'], data['nick'])
+        elif data['type'] == 'friendRemoved':
+            await self._bot_wrapper.process_friend_removed_event(data['who'], data['nick'])
+        elif data['type'] == 'groupJoined':
+            await self._bot_wrapper.process_group_added_event(data['which'], data['name'])
+        elif data['type'] == 'groupLeft':
+            kicker = None
+            if data['operator'] != 0:
+                kicker = data['operator']
+            await self._bot_wrapper.process_group_removed_event(data['which'], data['name'], kicker)
+        else:
+            logger.warning('unsupported user event type: ' + data['type'])
+
+    async def parse_group_event(self, data: dict):
+        if data['type'] == 'joinRequest':
+            inviter = None
+            if 'inviter' in data:
+                inviter = data['inviter']
+            await self._bot_wrapper.process_group_member_join_request_event(data['who'], data['group'], data['comment'], data['eventID'], inviter)
+        elif data['type'] == 'mute':
+            await self._bot_wrapper.process_group_mute_event(data['group'], data['who'], data['duration'])
+        elif data['type'] == 'admin':
+            await self._bot_wrapper.process_group_admin_change_event(data['group'], data['who'], data['status'])
+        elif data['type'] == 'memberJoined':
+            await self._bot_wrapper.process_group_member_added_event(data['who'], data['nick'], data['group'], data['group_name'])
+        elif data['type'] == 'memberLeft':
+            await self._bot_wrapper.process_group_member_removed_event(data['who'], data['group'], data['group_name'])
+        else:
+            logger.warning('unsupported group event type: ' + data['type'])
+
     # below are abstract interfaces from protocol wrapper
 
     async def query_packed_msg(self, id: str) -> typing.List[GroupedSegment.ContextFreeMessage]:
@@ -332,6 +382,51 @@ class MyBotProtocol(Protocol):
                                          ujson.dumps({
                                              'channel': id,
                                              'msgID': msgid,
+                                         }),
+                                         headers={'content-type': 'application/json'}
+                                         )
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return True
+        else:
+            return False
+
+    async def deal_friend_request(self, id: int, event_id: str, is_accept: bool) -> bool:
+        resp = await self._http_hdl.post('/user/acceptFriend',
+                                         ujson.dumps({
+                                             'who': id,
+                                             'eventID': event_id,
+                                             'accept': is_accept
+                                         }),
+                                         headers={'content-type': 'application/json'}
+                                         )
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return True
+        else:
+            return False
+
+    async def deal_group_invitation(self, id: int, event_id: str, is_accept: bool) -> bool:
+        resp = await self._http_hdl.post('/user/acceptGroupInvite',
+                                         ujson.dumps({
+                                             'who': id,
+                                             'eventID': event_id,
+                                             'accept': is_accept
+                                         }),
+                                         headers={'content-type': 'application/json'}
+                                         )
+        resp = ujson.loads(await resp.text())
+        if resp['status']['code'] == 0:
+            return True
+        else:
+            return False
+
+    async def deal_group_member_join_request(self, gid: int, event_id: str, is_accept: bool) -> bool:
+        resp = await self._http_hdl.post('/group/acceptJoin',
+                                         ujson.dumps({
+                                             'group': gid,
+                                             'eventID': event_id,
+                                             'accept': is_accept
                                          }),
                                          headers={'content-type': 'application/json'}
                                          )
