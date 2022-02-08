@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import asyncio
 
 from context import pyasyncbot
+
+import asyncio
 
 from pyasyncbot import Bot, BotConfig
 from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage, RevokedMessage
@@ -21,24 +22,18 @@ def signal_handler(sig, frame):
     bot.request_stop()
 
 
+# attach signal handler for keyboard CTRL+C
 signal.signal(signal.SIGINT, signal_handler)
 
 
 @bot.on_private_message
 async def on_private_message(msg: ReceivedPrivateMessage):
     print(msg)
-    replied = await msg.reply(msg.get_content())
-    await asyncio.sleep(5)
-    await replied.revoke()
 
 
 @bot.on_group_message
 async def on_group_message(msg: ReceivedGroupMessage):
     print(msg)
-    if msg.get_channel().get_id() == 934358995:
-        replied = await msg.reply(msg.get_content())
-        await asyncio.sleep(5)
-        await replied.revoke()
 
 
 @bot.on_private_revoke
@@ -49,7 +44,6 @@ async def on_private_revoke(msg: RevokedMessage):
 @bot.on_group_revoke
 async def on_group_revoke(msg: RevokedMessage):
     print(msg)
-    await asyncio.sleep(5)
 
 
 @bot.on_event
@@ -57,4 +51,5 @@ async def on_event(event: BotEvent):
     print(event)
 
 
+# block and run the bot as daemon
 exit(bot.run_as_daemon())
