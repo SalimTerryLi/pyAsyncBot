@@ -7,10 +7,10 @@ generate-whl:
     stage: build
     image: python:3.8.12-bullseye
     script:
-        - python setup.py bdist_wheel
+        - python setup.py sdist bdist_wheel
     artifacts:
         paths:
-            - "dist/*.whl"
+            - "dist/*"
 
 install-whl:
     stage: test
@@ -29,7 +29,6 @@ upload-pypi:
     script:
         - export https_proxy=http://scumaker.org:8580
         - pip install twine
-        - python -m build
         # TWINE_PASSWORD and TWINE_USERNAME set in CI variable
         - twine upload dist/*
         # push tag
