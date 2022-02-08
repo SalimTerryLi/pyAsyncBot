@@ -41,7 +41,7 @@ class MyBotProtocol(Protocol):
         res = await self._http_hdl.get('')
         if 'application/json' in res.content_type:
             data = ujson.loads(await res.text())
-            if data['name'] == 'oicq-webapi':
+            if data['name'] == 'oicq2-webapid':
                 logger.info('remote version: {v}'.format(v=data['version']))
                 return True
         return False
