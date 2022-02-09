@@ -1,0 +1,146 @@
+#!/usr/bin/env python
+
+try:
+    import pyasyncbot
+except ModuleNotFoundError:
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    import pyasyncbot
+
+import argparse
+import os
+import importlib
+import signal
+from loguru import logger
+import asyncio
+
+from pyasyncbot import Bot, BotConfig
+from pyasyncbot.Message import *
+from pyasyncbot.Event import *
+
+# parse cli argv
+parser = argparse.ArgumentParser(description='pyAsyncBot hot-pluggable daemon')
+parser.add_argument(
+    '-d', '--plugins-dir',
+    help='directory of hot-pluggable plugins',
+    type=str,
+    dest='plugins_dir',
+    default='.'
+)
+args = parser.parse_args()
+
+# check plugins_dir path
+if not os.path.isdir(args.plugins_dir):
+    logger.critical('plugins_dir "{path}" is not a directory'.format(path=args.plugins_dir), file=sys.stderr)
+    exit(-1)
+
+# get list of present plugins
+plugin_files = os.listdir(args.plugins_dir)
+plugin_files = [i for i in plugin_files if i.endswith('.py')]
+plugin_modules = []
+for plugin in plugin_files:
+    plugin_modules.append(plugin[:len(plugin) - 3])
+
+# setup bot client
+bot = Bot(BotConfig(
+    bot_protocol='MyBotProtocol',
+    http_setting=BotConfig.HTTPClientSetting('127.0.0.1', 8888),
+    ws_setting=BotConfig.WebSocketClientSetting('127.0.0.1', 8888)
+))
+
+
+# setup exit notification
+def signal_handler(sig, frame):
+    logger.info('Request stopping...')
+    bot.request_stop()
+
+
+# attach signal handler for keyboard CTRL+C
+signal.signal(signal.SIGINT, signal_handler)
+# attach signal handler for systemd stop
+signal.signal(signal.SIGTERM, signal_handler)
+
+# load modules
+sys.path.insert(0, os.path.abspath(args.plugins_dir))
+plugins = []
+for plugin in plugin_modules:
+    try:
+        plugins.append(importlib.import_module(plugin))
+        logger.info('Plugin "{name}" loaded'.format(name=plugin))
+    except Exception as e:
+        logger.error('failed to load plugin "{name}": {reason}'.format(name=plugin, reason=str(e)))
+
+
+# configure callbacks
+@bot.on_private_message
+async def on_private_message(msg: ReceivedPrivateMessage):
+    for plugin in plugins:
+        if hasattr(plugin, 'on_private_message'):
+            try:
+                bot.create_task(plugin.on_private_message(msg), 'daemon_task')
+            except TypeError:
+                pass
+
+
+@bot.on_group_message
+async def on_group_message(msg: ReceivedGroupMessage):
+    for plugin in plugins:
+        if hasattr(plugin, 'on_group_message'):
+            try:
+                bot.create_task(plugin.on_group_message(msg), 'daemon_task')
+            except TypeError:
+                pass
+
+
+@bot.on_private_revoke
+async def on_private_revoke(msg: RevokedMessage):
+    for plugin in plugins:
+        if hasattr(plugin, 'on_private_revoke'):
+            try:
+                bot.create_task(plugin.on_private_revoke(msg), 'daemon_task')
+            except TypeError:
+                pass
+
+
+@bot.on_group_revoke
+async def on_group_revoke(msg: RevokedMessage):
+    for plugin in plugins:
+        if hasattr(plugin, 'on_group_revoke'):
+            try:
+                bot.create_task(plugin.on_group_revoke(msg), 'daemon_task')
+            except TypeError:
+                pass
+
+
+@bot.on_event
+async def on_event(event: BotEvent):
+    for plugin in plugins:
+        if hasattr(plugin, 'on_event'):
+            try:
+                bot.create_task(plugin.on_event(event), 'daemon_task')
+            except TypeError:
+                pass
+
+
+@bot.on_framework_ready
+async def on_ready():
+    for plugin in plugins:
+        if hasattr(plugin, 'on_loaded'):
+            try:
+                bot.create_task(plugin.on_loaded(bot), 'daemon_task')
+            except TypeError:
+                pass
+
+
+# block and run the bot as daemon
+event_loop = asyncio.get_event_loop()
+
+
+async def main():
+    return await bot.run_as_task()
+
+
+daemon_task = event_loop.create_task(main())
+event_loop.run_until_complete(daemon_task)
