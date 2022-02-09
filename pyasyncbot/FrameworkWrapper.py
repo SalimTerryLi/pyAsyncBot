@@ -185,12 +185,13 @@ class BotWrapper:
             ev = FriendRemoved(id, nick)
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
-        if self.__bot.get_contacts()._friends is None:
-            if id in self.__bot.get_contacts()._friends_tmp:
-                del self.__bot.get_contacts()._friends_tmp[id]
-            return
-        if id in self.__bot.get_contacts()._friends:
-            del self.__bot.get_contacts()._friends[id]
+        async with self.__bot.get_contacts()._friends_lock:
+            if self.__bot.get_contacts()._friends is None:
+                if id in self.__bot.get_contacts()._friends_tmp:
+                    del self.__bot.get_contacts()._friends_tmp[id]
+                return
+            if id in self.__bot.get_contacts()._friends:
+                del self.__bot.get_contacts()._friends[id]
 
     async def process_friend_added_event(self, id: int, nick: str):
         """
@@ -203,10 +204,11 @@ class BotWrapper:
             ev = FriendAdded(id, nick)
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
-        # ignore those event if contact is not used
-        if self.__bot.get_contacts()._friends is None:
-            return
-        self.__bot.get_contacts()._friends[id] = Friend(self.__bot.get_contacts(), id, nick)
+        async with self.__bot.get_contacts()._friends_lock:
+            # ignore those event if contact is not used
+            if self.__bot.get_contacts()._friends is None:
+                return
+            self.__bot.get_contacts()._friends[id] = Friend(self.__bot.get_contacts(), id, nick)
 
     async def process_new_friend_request_event(self, id: int, nick: str, comment: str, event_id: str, source: int = None):
         """
@@ -249,12 +251,13 @@ class BotWrapper:
             ev = GroupRemoved(id, name, kicked_by)
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
-        if self.__bot.get_contacts()._groups is None:
-            if id in self.__bot.get_contacts()._groups_tmp:
-                del self.__bot.get_contacts()._groups_tmp[id]
-            return
-        if id in self.__bot.get_contacts()._groups:
-            del self.__bot.get_contacts()._groups[id]
+        async with self.__bot.get_contacts()._groups_lock:
+            if self.__bot.get_contacts()._groups is None:
+                if id in self.__bot.get_contacts()._groups_tmp:
+                    del self.__bot.get_contacts()._groups_tmp[id]
+                return
+            if id in self.__bot.get_contacts()._groups:
+                del self.__bot.get_contacts()._groups[id]
 
     async def process_group_added_event(self, id: int, name: str):
         """
@@ -267,10 +270,11 @@ class BotWrapper:
             ev = GroupAdded(id, name)
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
-        # ignore those event if contact is not used
-        if self.__bot.get_contacts()._groups is None:
-            return
-        self.__bot.get_contacts()._groups[id] = Group(self.__bot.get_contacts(), id, name)
+        async with self.__bot.get_contacts()._groups_lock:
+            # ignore those event if contact is not used
+            if self.__bot.get_contacts()._groups is None:
+                return
+            self.__bot.get_contacts()._groups[id] = Group(self.__bot.get_contacts(), id, name)
 
     async def process_group_member_added_event(self, uid: int, nick: str, gid: int, group_name: str):
         """
@@ -285,14 +289,16 @@ class BotWrapper:
             ev = GroupMemberAdded(gid, group_name, uid, nick)
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
-        # ignore those event if contact is not used
-        if self.__bot.get_contacts()._groups is None:
-            return
-        if gid not in self.__bot.get_contacts()._groups:
-            return
-        if self.__bot.get_contacts()._groups[gid]._members is None:
-            return
-        self.__bot.get_contacts()._groups[gid]._members[uid] = GroupMember(self.__bot.get_contacts(), uid, nick, gid)
+        async with self.__bot.get_contacts()._groups_lock:
+            # ignore those event if contact is not used
+            if self.__bot.get_contacts()._groups is None:
+                return
+            if gid not in self.__bot.get_contacts()._groups:
+                return
+            async with self.__bot.get_contacts()._groups[gid]._members_lock:
+                if self.__bot.get_contacts()._groups[gid]._members is None:
+                    return
+                self.__bot.get_contacts()._groups[gid]._members[uid] = GroupMember(self.__bot.get_contacts(), uid, nick, gid)
 
     async def process_group_member_removed_event(self, uid: int, gid: int, group_name: str):
         """
@@ -307,19 +313,21 @@ class BotWrapper:
             ev._contacts = self.__bot.get_contacts()
             await self.__bot._on_event_cb(ev)
 
-        if self.__bot.get_contacts()._groups is None:
-            if gid in self.__bot.get_contacts()._groups_tmp:
-                del self.__bot.get_contacts()._groups_tmp[uid]
-            return
-        if gid not in self.__bot.get_contacts()._groups:
-            # it is already loaded list
-            logger.error('error: group {gid} doesn\' t exist!'.format(gid=gid))
-            return
-        if self.__bot.get_contacts()._groups[gid]._members is None:
-            if uid in self.__bot.get_contacts()._groups[gid]._members_tmp:
-                del self.__bot.get_contacts()._groups[gid]._members_tmp[uid]
-            return
-        del self.__bot.get_contacts()._groups[gid]._members[uid]
+        async with self.__bot.get_contacts()._groups_lock:
+            if self.__bot.get_contacts()._groups is None:
+                if gid in self.__bot.get_contacts()._groups_tmp:
+                    del self.__bot.get_contacts()._groups_tmp[uid]
+                return
+            if gid not in self.__bot.get_contacts()._groups:
+                # it is already loaded list
+                logger.error('error: group {gid} doesn\' t exist!'.format(gid=gid))
+                return
+            async with self.__bot.get_contacts()._groups[gid]._members_lock:
+                if self.__bot.get_contacts()._groups[gid]._members is None:
+                    if uid in self.__bot.get_contacts()._groups[gid]._members_tmp:
+                        del self.__bot.get_contacts()._groups[gid]._members_tmp[uid]
+                    return
+                del self.__bot.get_contacts()._groups[gid]._members[uid]
 
     async def process_group_member_join_request_event(self, uid: int, gid: int, comment: str, event_id: str, inviter: int = None):
         """
