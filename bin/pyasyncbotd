@@ -11,6 +11,7 @@ except ModuleNotFoundError:
 
 import argparse
 import os
+import sys
 import importlib
 import signal
 from loguru import logger
