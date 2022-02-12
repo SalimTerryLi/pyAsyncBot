@@ -16,4 +16,7 @@ setup(
         'aiofiles>=0.8.0',
         'loguru>=0.6.0',
     ],
+    scripts=[
+        './bin/pyasyncbotd'
+    ],
 )

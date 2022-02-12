@@ -36,10 +36,15 @@ class Bot:
         self._config: BotConfig = conf
         self._commuware: CommunicationWare = CommunicationWare()
         self._async_loop: asyncio.AbstractEventLoop = None      # Get filled run-timely
+        # tasks stored in this set will be waited silently until all exited
         self.__task_set: typing.Set[asyncio.Task] = set()
+        # tasks stored in this set will receive task cancellation when exiting
+        self.__task_set_ext: typing.Set[asyncio.Task] = set()
         self._contacts = None                                   # Get filled run-timely
 
         # registered callbacks
+        self._on_framework_ready: typing.Callable = None
+
         self._on_private_msg_cb: typing.Callable[[ReceivedPrivateMessage], typing.Awaitable[None]] = None
         self._on_group_msg_cb: typing.Callable[[ReceivedGroupMessage], typing.Awaitable[None]] = None
         self._on_private_revoke_cb: typing.Callable[[RevokedMessage], typing.Awaitable[None]] = None
@@ -79,6 +84,26 @@ class Bot:
         self.__task_set.remove(asyncio.current_task(self._async_loop))
         return ret
 
+    def create_task(self, coro: typing.Awaitable, name: str):
+        """
+        Create a task which is monitored by the bot. Bot will exit only if those tasks are exited.
+
+        :param coro: co-routine
+        :param name: task name
+        """
+        return self._async_loop.create_task(self.__create_ext_task_coro(coro), name=name)
+
+    async def __create_ext_task_coro(self, coro: typing.Awaitable):
+        self.__task_set_ext.add(asyncio.current_task(self._async_loop))
+        ret = 0
+        try:
+            ret = await coro
+        except Exception:
+            logger.error('Exception from bot tasks')
+            traceback.print_exc(file=sys.stderr)
+        self.__task_set_ext.remove(asyncio.current_task(self._async_loop))
+        return ret
+
     def run_as_daemon(self):
         """
         Block and run the bot client. Will return when bot exit.
@@ -107,11 +132,11 @@ class Bot:
     def request_stop(self):
         """
         Notify the bot to exit
-
-        Will only stop the daemon, but not touching any sub-tasks launched by daemon.
-        Assume those tasks will exit properly by themself
         """
-        self._async_loop.call_soon_threadsafe(self._commuware.request_stop)
+        self._async_loop.call_soon_threadsafe(self.__request_stop)
+
+    def __request_stop(self):
+        self._commuware.request_stop()
 
     async def _run(self):
         bot_protocol: Protocol = None
@@ -152,11 +177,20 @@ class Bot:
         # bot protocol is ready, create protocol wrapper and initialize contacts
         self._contacts = Contacts(bot_protocol)
 
+        # framework ready
+        if self._on_framework_ready is not None:
+            self._create_bot_task(self._on_framework_ready(), 'framework_task')
+
         # wait until the daemon task finished
         await commu_task
 
-        logger.info('commu tasks exited. wait for {d} of sub-tasks to complete'.format(d=len(self.__task_set)))
-        await asyncio.gather(*self.__task_set)
+        # cancel external tasks
+        for task in self.__task_set_ext:
+            task.cancel()
+
+        sub_tasks = self.__task_set | self.__task_set_ext
+        logger.info('commu tasks exited. wait for {d} of sub-tasks to complete'.format(d=len(sub_tasks)))
+        await asyncio.gather(*sub_tasks)
 
         # do cleanups
         await bot_protocol.cleanup()
@@ -169,6 +203,14 @@ class Bot:
         Get the contacts obj of this bot
         """
         return self._contacts
+
+    def on_framework_ready(self, deco):
+        """
+        Register callback for framework ready status
+        """
+        if self._on_framework_ready is not None:
+            logger.warning('overwrite _on_framework_ready')
+        self._on_framework_ready = deco
 
     def on_private_message(self, deco):
         """
