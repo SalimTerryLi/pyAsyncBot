@@ -14,6 +14,7 @@ import os
 import sys
 import importlib
 import signal
+import re
 from loguru import logger
 import asyncio
 
@@ -22,7 +23,7 @@ from pyasyncbot.Message import *
 from pyasyncbot.Event import *
 
 # parse cli argv
-parser = argparse.ArgumentParser(description='pyAsyncBot hot-pluggable daemon')
+parser = argparse.ArgumentParser(description='pyAsyncBot standalone daemon')
 parser.add_argument(
     '-d', '--plugins-dir',
     help='directory of hot-pluggable plugins',
@@ -30,7 +31,31 @@ parser.add_argument(
     dest='plugins_dir',
     default='.'
 )
+parser.add_argument(
+    '-p', '--protocol',
+    help='bot protocol',
+    type=str,
+    dest='bot_protocol',
+    default='MyBotProtocol'
+)
+parser.add_argument(
+    '-u', '--url',
+    help='bot protocol backend url',
+    type=str,
+    dest='url',
+    default='http://127.0.0.1:8888'
+)
 args = parser.parse_args()
+
+# checking argv
+match_obj = re.match(r'^http://([^:]+)(?::([\d]+)|)[/]?$', args.url)
+if match_obj is None:
+    logger.critical('unsupported url: ' + args.url)
+    exit(-2)
+HOST = match_obj.groups()[0]
+PORT = 80
+if len(match_obj.groups()) == 2:
+    PORT = int(match_obj.groups()[1])
 
 # check plugins_dir path
 if not os.path.isdir(args.plugins_dir):
@@ -47,8 +72,8 @@ for plugin in plugin_files:
 # setup bot client
 bot = Bot(BotConfig(
     bot_protocol='MyBotProtocol',
-    http_setting=BotConfig.HTTPClientSetting('127.0.0.1', 8888),
-    ws_setting=BotConfig.WebSocketClientSetting('127.0.0.1', 8888)
+    http_setting=BotConfig.HTTPClientSetting(HOST, PORT),
+    ws_setting=BotConfig.WebSocketClientSetting(HOST, PORT)
 ))
 
 
