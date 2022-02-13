@@ -3,16 +3,18 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from .Message import MessageContent
+    from .Message import MessageContent, ReceivedMessage, ReceivedGroupMessage, ReceivedPrivateMessage
     from .FrameworkWrapper import ProtocolWrapper
 
 from .Message import SentMessage
 
 from loguru import logger
 from ujson import dumps
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, List, TypedDict
 from abc import ABC, abstractmethod
+import time
 
 
 class User:
@@ -38,6 +40,7 @@ class Channel(User, ABC):
     """
     Where messaging tasks is capable
     """
+
     def __init__(self, contacts: Contacts, uid: int, nickname: str):
         super().__init__(uid, nickname)
         self._contacts: Contacts = contacts
@@ -59,6 +62,16 @@ class Channel(User, ABC):
 
         :param msgid: msg ID
         :return: success
+        """
+        pass
+
+    @abstractmethod
+    async def wait_msg(self, timeout: float = None) -> Union[ReceivedMessage, None]:
+        """
+        Waiting for a new message coming to this channel
+
+        :param timeout: how long should blocking here, in second. None means forever
+        :return: received message, or None if timeout
         """
         pass
 
@@ -87,6 +100,23 @@ class Friend(Channel):
     async def revoke_msg(self, msgid: str) -> bool:
         return await self._contacts._proto_wrapper.serv_private_revoke(self.get_id(), msgid)
 
+    async def wait_msg(self, timeout: float = None) -> Union[ReceivedPrivateMessage, None]:
+        wait_item: Contacts.WaitForItem = {
+            'channel_id': self.get_id(),
+            'payload': None,
+            'event': asyncio.Event()
+        }
+        self._contacts._wait_for_list['privmsg'].append(wait_item)
+        ret = None
+        try:
+            await asyncio.wait_for(wait_item['event'].wait(), timeout)
+            ret = wait_item['payload']
+        except asyncio.TimeoutError:
+            pass
+        self._contacts._wait_for_list['privmsg'][:] = [i for i in self._contacts._wait_for_list['privmsg'] if
+                                                       i is not wait_item]
+        return ret
+
 
 class Stranger(Channel):
     def __init__(self, contact: Contacts, uid: int, nickname: str, gid: int = None):
@@ -106,6 +136,23 @@ class Stranger(Channel):
 
     async def revoke_msg(self, msgid: str) -> bool:
         raise Exception('Not implemented')
+
+    async def wait_msg(self, timeout: float = None) -> Union[ReceivedPrivateMessage, None]:
+        wait_item: Contacts.WaitForItem = {
+            'channel_id': self.get_id(),
+            'payload': None,
+            'event': asyncio.Event()
+        }
+        self._contacts._wait_for_list['privmsg'].append(wait_item)
+        ret = None
+        try:
+            await asyncio.wait_for(wait_item['event'].wait(), timeout)
+            ret = wait_item['payload']
+        except asyncio.TimeoutError:
+            pass
+        self._contacts._wait_for_list['privmsg'][:] = [i for i in self._contacts._wait_for_list['privmsg'] if
+                                                       i is not wait_item]
+        return ret
 
 
 class GroupMember(User):
@@ -181,6 +228,43 @@ class Group(Channel):
 
     async def revoke_msg(self, msgid: str) -> bool:
         return await self._contacts._proto_wrapper.serv_group_revoke(self.get_id(), msgid)
+
+    async def wait_msg(self, timeout: float = None) -> Union[ReceivedGroupMessage, None]:
+        wait_item: Contacts.WaitForItem = {
+            'channel_id': self.get_id(),
+            'payload': None,
+            'event': asyncio.Event()
+        }
+        self._contacts._wait_for_list['groupmsg'].append(wait_item)
+        ret = None
+        try:
+            await asyncio.wait_for(wait_item['event'].wait(), timeout)
+            ret = wait_item['payload']
+        except asyncio.TimeoutError:
+            pass
+        self._contacts._wait_for_list['groupmsg'][:] = [i for i in self._contacts._wait_for_list['groupmsg'] if
+                                                        i is not wait_item]
+        return ret
+
+    async def wait_member_message(self, member: Union[GroupMember, GroupAnonymousMember, int], timeout: float = None) -> Union[ReceivedGroupMessage, None]:
+        begin_time = time.time()
+        while True:
+            curr_time = time.time()
+            wait_time = None
+            if timeout is not None:
+                if curr_time - begin_time >= timeout:
+                    return None
+                else:
+                    wait_time = timeout - (curr_time - begin_time)
+            else:
+                pass
+            msg = await self.wait_msg(wait_time)
+            if msg is None:
+                continue
+            if type(member) is not int:
+                member = member.get_id()
+            if msg.get_sender().get_id() == member:
+                return msg
 
     async def get_member(self, id: int, nick: str = None) -> Union[GroupMember, None]:
         """
@@ -260,6 +344,17 @@ class Group(Channel):
 
 
 class Contacts:
+    class WaitForItem(TypedDict):
+        channel_id: int
+        payload: Any
+        event: asyncio.Event
+
+    class WaitForList(TypedDict):
+        privmsg: List[Contacts.WaitForItem]
+        groupmsg: List[Contacts.WaitForItem]
+        privrevoke: List[Contacts.WaitForItem]
+        grouprevoke: List[Contacts.WaitForItem]
+
     # TODO: abstract and make lazy init unified
     def __init__(self, protocol: ProtocolWrapper):
         self._proto_wrapper: ProtocolWrapper = protocol
@@ -271,6 +366,14 @@ class Contacts:
         self._groups_lock: asyncio.Lock = asyncio.Lock()
         self._friends_tmp: Dict[int, Friend] = dict()
         self._groups_tmp: Dict[int, Group] = dict()
+
+        # wait-for storage
+        self._wait_for_list: Contacts.WaitForList = {
+            'privmsg': [],
+            'groupmsg': [],
+            'privrevoke': [],
+            'grouprevoke': []
+        }
 
     async def get_friend(self, id: int, nick: str = None) -> Union[Friend, None]:
         """
@@ -306,7 +409,8 @@ class Contacts:
                 else:
                     # nick is also provided so that we create a mock friend object
                     self._friends_tmp[id] = Friend(self, id, nick)
-                    logger.debug('mocked friend list: append {uid}, total {size}'.format(uid=id,size=len(self._friends_tmp)))
+                    logger.debug(
+                        'mocked friend list: append {uid}, total {size}'.format(uid=id, size=len(self._friends_tmp)))
                     return self._friends_tmp[id]
             else:
                 # always use the populated list
@@ -381,7 +485,8 @@ class Contacts:
                 else:
                     # name is also provided so that we create a mock group object
                     self._groups_tmp[id] = Group(self, id, name)
-                    logger.debug('mocked group list: append {gid}, total {size}'.format(gid=id,size=len(self._groups_tmp)))
+                    logger.debug(
+                        'mocked group list: append {gid}, total {size}'.format(gid=id, size=len(self._groups_tmp)))
                     return self._groups_tmp[id]
             else:
                 # always use the populated list

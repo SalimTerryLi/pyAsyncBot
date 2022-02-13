@@ -70,6 +70,11 @@ class BotWrapper:
             msg._channel = await (await msg._ref_channel.get_member(channel_id, channel_nick)).open_private_channel()
             msg._sender = await (await msg._ref_channel.get_member(sender_id, sender_nick)).open_private_channel()
 
+        for wait_item in self.__bot.get_contacts()._wait_for_list['privmsg']:
+            if wait_item['channel_id'] == channel_id and wait_item['payload'] is None:
+                wait_item['payload'] = msg
+                wait_item['event'].set()
+
         if self.__bot._on_private_msg_cb is not None:
             await self.__bot._on_private_msg_cb(msg)
 
@@ -104,6 +109,11 @@ class BotWrapper:
         else:
             msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
             msg._sender = await msg._channel.get_member(sender_id, sender_nick)
+
+        for wait_item in self.__bot.get_contacts()._wait_for_list['groupmsg']:
+            if wait_item['channel_id'] == group_id and wait_item['payload'] is None:
+                wait_item['payload'] = msg
+                wait_item['event'].set()
 
         if self.__bot._on_group_msg_cb is not None:
             await self.__bot._on_group_msg_cb(msg)
