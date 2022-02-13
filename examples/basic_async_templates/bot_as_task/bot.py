@@ -6,7 +6,6 @@ from pyasyncbot import Bot, BotConfig
 from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage, RevokedMessage
 from pyasyncbot.Event import BotEvent
 
-
 # manually create and set an event loop for current thread
 # asyncio.get_event_loop() will do the same thing
 event_loop = asyncio.new_event_loop()
@@ -42,6 +41,11 @@ async def on_group_revoke(msg: RevokedMessage):
 @bot.on_event
 async def on_event(event: BotEvent):
     print(event)
+
+
+@bot.on_framework_ready
+async def bot_ready():
+    pass
 
 
 async def foo():

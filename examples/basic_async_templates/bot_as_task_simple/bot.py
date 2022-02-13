@@ -39,6 +39,11 @@ async def on_event(event: BotEvent):
     print(event)
 
 
+@bot.on_framework_ready
+async def bot_ready():
+    pass
+
+
 async def foo():
     # start bot here as a separate task
     bot_task = asyncio.create_task(bot.run_as_task())

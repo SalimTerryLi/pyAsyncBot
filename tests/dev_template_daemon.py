@@ -51,5 +51,10 @@ async def on_event(event: BotEvent):
     print(event)
 
 
+@bot.on_framework_ready
+async def bot_ready():
+    pass
+
+
 # block and run the bot as daemon
 exit(bot.run_as_daemon())
