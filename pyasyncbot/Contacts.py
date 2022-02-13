@@ -5,7 +5,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .Message import MessageContent, ReceivedMessage, ReceivedGroupMessage, ReceivedPrivateMessage
+    from .Message import MessageContent, RepliedMessageContent, ReceivedMessage, ReceivedGroupMessage, ReceivedPrivateMessage
     from .FrameworkWrapper import ProtocolWrapper
 
 from .Message import SentMessage
@@ -46,11 +46,12 @@ class Channel(User, ABC):
         self._contacts: Contacts = contacts
 
     @abstractmethod
-    async def send_msg(self, content: MessageContent) -> SentMessage:
+    async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
         """
         Override this function to implement message sending
 
         :param content: msg content
+        :param reply: replied context
         :return: sent message, or None if failed
         """
         pass
@@ -87,8 +88,8 @@ class Friend(Channel):
             'nick': self.get_name()
         }, ensure_ascii=False)
 
-    async def send_msg(self, content: MessageContent) -> SentMessage:
-        msgid = await self._contacts._proto_wrapper.serv_private_message(self.get_id(), content)
+    async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
+        msgid = await self._contacts._proto_wrapper.serv_private_message(self.get_id(), content, reply=reply)
         if msgid is None:
             return None
         else:
@@ -131,7 +132,7 @@ class Stranger(Channel):
             'from_group_id': self._gid
         }, ensure_ascii=False)
 
-    async def send_msg(self, content: MessageContent) -> SentMessage:
+    async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
         raise Exception('Not implemented')
 
     async def revoke_msg(self, msgid: str) -> bool:
@@ -216,8 +217,8 @@ class Group(Channel):
             'name': self._name
         })
 
-    async def send_msg(self, content: MessageContent) -> SentMessage:
-        msgid = await self._contacts._proto_wrapper.serv_group_message(self._id, content)
+    async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
+        msgid = await self._contacts._proto_wrapper.serv_group_message(self._id, content, reply=reply)
         if msgid is None:
             return None
         else:

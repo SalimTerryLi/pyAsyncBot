@@ -111,14 +111,20 @@ class ReceivedMessage:
         """
         return await self._channel.send_msg(content)
 
-    async def quoted_reply(self, content: MessageContent) -> Union[str, None]:
+    async def quoted_reply(self, content: MessageContent) -> SentMessage:
         """
         Reply to original message with its content summarized and quoted
 
         :param content: message content
         :return: msgID of reply msg or None if failed
         """
-        pass
+        reply_content = RepliedMessageContent(
+            to_msgid=self._msgID,
+            to_uid=self._sender.get_id(),
+            text=self._summary,
+            time=self._time
+        )
+        return await self._channel.send_msg(content, reply_content)
 
 
 class ReceivedPrivateMessage(ReceivedMessage):
