@@ -12,6 +12,7 @@ from ..commu.http import HTTPClientAPI
 from ..Message import *
 from .Protocol import Protocol, BotWrapper
 from ..Event import *
+from ..FrameworkWrapper import PrivateMessageContext, GroupMessageContext, Channel
 
 
 class MyBotProtocol(Protocol):
@@ -63,11 +64,11 @@ class MyBotProtocol(Protocol):
             logger.error(e)
 
     async def parse_msg(self, msgdata: dict):
+        reply: typing.Union[RepliedMessageContent, None] = None
+        if 'reply' in msgdata:
+            reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
         if msgdata['type'] == 'private':
-            reply: typing.Union[RepliedMessageContent, None] = None
-            if 'reply' in msgdata:
-                reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
-            await self._bot_wrapper.deliver_private_msg(
+            await self._bot_wrapper.deliver_private_msg(PrivateMessageContext(
                 time=datetime.datetime.fromtimestamp(msgdata['time']),
                 sender_id=msgdata['sender'],
                 sender_nick=msgdata['sender_nick'],
@@ -80,12 +81,9 @@ class MyBotProtocol(Protocol):
                 from_channel=msgdata['ref_channel'],
                 from_channel_name=msgdata['ref_channel_name'],
                 reply=reply
-            )
+            ))
         elif msgdata['type'] == 'group':
-            reply: typing.Union[RepliedMessageContent, None] = None
-            if 'reply' in msgdata:
-                reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
-            await self._bot_wrapper.deliver_group_msg(
+            await self._bot_wrapper.deliver_group_msg(GroupMessageContext(
                 time=datetime.datetime.fromtimestamp(msgdata['time']),
                 sender_id=msgdata['sender'],
                 sender_nick=msgdata['sender_nick'],
@@ -96,7 +94,7 @@ class MyBotProtocol(Protocol):
                 summary=msgdata['msgString'],
                 is_anonymous=not msgdata['known'],
                 reply=reply
-            )
+            ))
         else:
             logger.error('unsupported msg.type: ' + msgdata['type'])
 
@@ -249,12 +247,6 @@ class MyBotProtocol(Protocol):
     # below are abstract interfaces from protocol wrapper
 
     async def query_packed_msg(self, id: str) -> typing.List[GroupedSegment.ContextFreeMessage]:
-        """
-        Override this function to implement content querying of packed message
-
-        :param id: packed msgid
-        :return: context-free message obj
-        """
         resp = await self._http_hdl.get('/mesg/parseForwardedMsg', params={'id': id})
         if 'application/json' in resp.content_type:
             data = ujson.loads(await resp.text())
@@ -272,12 +264,53 @@ class MyBotProtocol(Protocol):
                 raise Exception('remote returned status ' + data['status']['code'] + 'on /mesg/parseForwardedMsg')
         raise Exception('unexpected result from /mesg/parseForwardedMsg')
 
-    async def get_friend_list(self) -> typing.Dict[int, str]:
-        """
-        Override this function to provide friend list content. Normally not need to do cache here.
+    async def query_msg_by_id(self, channel_type: Channel.ChannelType, channel_id: int, msgid: str) -> Union[PrivateMessageContext, GroupMessageContext]:
+        channel_type_str = ''
+        if channel_type == Channel.ChannelType.P2P:
+            channel_type_str = 'private'
+        elif channel_type == Channel.ChannelType.MultiUser:
+            channel_type_str = 'group'
+        resp = await self._http_hdl.get('/mesg/queryMsg', params={'id': msgid, 'type': channel_type_str, 'channel': channel_id})
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                msgdata = data['data']
+                reply: typing.Union[RepliedMessageContent, None] = None
+                if 'reply' in msgdata:
+                    reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
+                if msgdata['type'] == 'private':
+                    return PrivateMessageContext(
+                        time=datetime.datetime.fromtimestamp(msgdata['time']),
+                        sender_id=msgdata['sender'],
+                        sender_nick=msgdata['sender_nick'],
+                        channel_id=msgdata['channel'],
+                        channel_nick=msgdata['channel_name'],
+                        msgid=msgdata['msgID'],
+                        msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                        summary=msgdata['msgString'],
+                        is_friend=msgdata['known'],
+                        from_channel=msgdata['ref_channel'],
+                        from_channel_name=msgdata['ref_channel_name'],
+                        reply=reply
+                    )
+                elif msgdata['type'] == 'group':
+                    return GroupMessageContext(
+                        time=datetime.datetime.fromtimestamp(msgdata['time']),
+                        sender_id=msgdata['sender'],
+                        sender_nick=msgdata['sender_nick'],
+                        group_id=msgdata['channel'],
+                        group_name=msgdata['channel_name'],
+                        msgid=msgdata['msgID'],
+                        msgcontent=MyBotProtocol.parse_msg_content(msgdata['msgContent']),
+                        summary=msgdata['msgString'],
+                        is_anonymous=not msgdata['known'],
+                        reply=reply
+                    )
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + 'on /mesg/queryMsg')
+        raise Exception('unexpected result from /mesg/queryMsg')
 
-        :return: a list of user ids
-        """
+    async def get_friend_list(self) -> typing.Dict[int, str]:
         resp = await self._http_hdl.get('/user/getFriendList')
         if 'application/json' in resp.content_type:
             data = ujson.loads(await resp.text())
@@ -291,11 +324,6 @@ class MyBotProtocol(Protocol):
         raise Exception('unexpected result from /user/getFriendList')
 
     async def get_group_list(self) -> typing.Dict[int, str]:
-        """
-        Override this function to provide group list content. Normally not need to do cache here.
-
-        :return: a list of group ids
-        """
         resp = await self._http_hdl.get('/user/getGroupList')
         if 'application/json' in resp.content_type:
             data = ujson.loads(await resp.text())
@@ -309,11 +337,6 @@ class MyBotProtocol(Protocol):
         raise Exception('unexpected result from /user/getGroupList')
 
     async def get_group_members(self, id: int) -> typing.Dict[int, str]:
-        """
-        Get the group member list
-
-        :param id: group id
-        """
         resp = await self._http_hdl.get('/group/getMemberList', params={'group': id})
         if 'application/json' in resp.content_type:
             data = ujson.loads(await resp.text())

@@ -8,13 +8,15 @@ if TYPE_CHECKING:
     from .Message import MessageContent, RepliedMessageContent, ReceivedMessage, ReceivedGroupMessage, ReceivedPrivateMessage
     from .FrameworkWrapper import ProtocolWrapper
 
-from .Message import SentMessage
 
 from loguru import logger
 from ujson import dumps
 from typing import Union, Dict, Any, List, TypedDict
 from abc import ABC, abstractmethod
 import time
+from enum import Enum, auto
+
+from .Message import SentMessage
 
 
 class User:
@@ -40,6 +42,10 @@ class Channel(User, ABC):
     """
     Where messaging tasks is capable
     """
+
+    class ChannelType(Enum):
+        P2P = auto()
+        MultiUser = auto()
 
     def __init__(self, contacts: Contacts, uid: int, nickname: str):
         super().__init__(uid, nickname)
@@ -76,6 +82,19 @@ class Channel(User, ABC):
         """
         pass
 
+    @abstractmethod
+    def get_type(self) -> Channel.ChannelType:
+        """
+        Get the channel Type
+
+        :return: ChannelType
+        """
+        pass
+
+
+class Me(User):
+    pass
+
 
 class Friend(Channel):
     def __init__(self, contact: Contacts, uid: int, nickname: str):
@@ -87,6 +106,9 @@ class Friend(Channel):
             'id': self.get_id(),
             'nick': self.get_name()
         }, ensure_ascii=False)
+
+    def get_type(self) -> Channel.ChannelType:
+        return Channel.ChannelType.P2P
 
     async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
         msgid = await self._contacts._proto_wrapper.serv_private_message(self.get_id(), content, reply=reply)
@@ -131,6 +153,9 @@ class Stranger(Channel):
             'nick': self.get_name(),
             'from_group_id': self._gid
         }, ensure_ascii=False)
+
+    def get_type(self) -> Channel.ChannelType:
+        return Channel.ChannelType.P2P
 
     async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
         raise Exception('Not implemented')
@@ -216,6 +241,9 @@ class Group(Channel):
             'group_id': self._id,
             'name': self._name
         })
+
+    def get_type(self) -> Channel.ChannelType:
+        return Channel.ChannelType.MultiUser
 
     async def send_msg(self, content: MessageContent, reply: RepliedMessageContent = None) -> SentMessage:
         msgid = await self._contacts._proto_wrapper.serv_group_message(self._id, content, reply=reply)
@@ -360,6 +388,7 @@ class Contacts:
     def __init__(self, protocol: ProtocolWrapper):
         self._proto_wrapper: ProtocolWrapper = protocol
         # lazy init of dicts
+        self._me: Me = None
         # one mutex for both dicts
         self._friends: Dict[int, Friend] = None
         self._friends_lock: asyncio.Lock = asyncio.Lock()
@@ -375,6 +404,16 @@ class Contacts:
             'privrevoke': [],
             'grouprevoke': []
         }
+
+    async def get_myself(self) -> Me:
+        """
+        Get the User object that represents bot itself
+
+        :return: Me
+        """
+        if self._me is None:
+            pass
+        return self._me
 
     async def get_friend(self, id: int, nick: str = None) -> Union[Friend, None]:
         """

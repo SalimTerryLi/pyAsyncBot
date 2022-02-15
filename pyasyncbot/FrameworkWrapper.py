@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
+import dataclasses
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from .Bot import Bot
 
@@ -9,11 +12,12 @@ import typing
 from abc import ABC, abstractmethod
 import datetime
 
-from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, \
-    SentMessage, ReceivedPrivateMessage, ReceivedGroupMessage
 from .MsgContent import GroupedSegment
-from .Contacts import Friend, Stranger, GroupMember, GroupAnonymousMember, Group
+from .Contacts import GroupAnonymousMember
 from .Event import *
+from .Contacts import Channel
+from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, \
+    ReceivedPrivateMessage, ReceivedGroupMessage, PrivateMessageContext, GroupMessageContext
 
 
 class BotWrapper:
@@ -35,83 +39,54 @@ class BotWrapper:
         """
         return self.__bot._create_bot_task(coro, name)
 
-    async def deliver_private_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str,
-                                  channel_id: int, channel_nick: str, msgid: str,
-                                  msgcontent: MessageContent, summary: str, is_friend: bool = True,
-                                  from_channel: int = None,
-                                  from_channel_name: str = None, reply: RepliedMessageContent = None):
+    async def deliver_private_msg(self, ctx: PrivateMessageContext):
         """
         Call this func to deliver a private message event to bot payload
-
-        :param time: time of message
-        :param sender_id: who sent the message
-        :param sender_nick: his nickname
-        :param channel_id: where the message from
-        :param channel_nick: his nick
-        :param msgid: msg id
-        :param msgcontent: parsed msg content object
-        :param summary: summary of message, used to generate reply
-        :param is_friend: friend, or stranger
-        :param from_channel: If it is from a stranger then this field is the group that the one is from
-        :param from_channel_name: as above, the group name
-        :param reply: parsed reply info object
         """
         msg: ReceivedMessage = ReceivedPrivateMessage(self.__bot.get_contacts())
-        msg._time = time
-        msg._msgID = msgid
-        msg._msgContent = msgcontent
-        msg._summary = summary
-        msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
-        if is_friend:
-            msg._channel = await self.__bot.get_contacts().get_friend(channel_id, channel_nick)
-            msg._sender = await self.__bot.get_contacts().get_friend(sender_id, sender_nick)
+        msg._time = ctx.time
+        msg._msgID = ctx.msgid
+        msg._msgContent = ctx.msgcontent
+        msg._summary = ctx.summary
+        if ctx.reply is not None:
+            msg._reply = RepliedMessage(ctx.reply, msg)
+        if ctx.is_friend:
+            msg._channel = await self.__bot.get_contacts().get_friend(ctx.channel_id, ctx.channel_nick)
+            msg._sender = await self.__bot.get_contacts().get_friend(ctx.sender_id, ctx.sender_nick)
         else:
-            msg._ref_channel = await self.__bot.get_contacts().get_group(from_channel, from_channel_name)
-            msg._channel = await (await msg._ref_channel.get_member(channel_id, channel_nick)).open_private_channel()
-            msg._sender = await (await msg._ref_channel.get_member(sender_id, sender_nick)).open_private_channel()
+            msg._ref_channel = await self.__bot.get_contacts().get_group(ctx.from_channel, ctx.from_channel_name)
+            msg._channel = await (await msg._ref_channel.get_member(ctx.channel_id, ctx.channel_nick)).open_private_channel()
+            msg._sender = await (await msg._ref_channel.get_member(ctx.sender_id, ctx.sender_nick)).open_private_channel()
 
         for wait_item in self.__bot.get_contacts()._wait_for_list['privmsg']:
-            if wait_item['channel_id'] == channel_id and wait_item['payload'] is None:
+            if wait_item['channel_id'] == ctx.channel_id and wait_item['payload'] is None:
                 wait_item['payload'] = msg
                 wait_item['event'].set()
 
         if self.__bot._on_private_msg_cb is not None:
             await self.__bot._on_private_msg_cb(msg)
 
-    async def deliver_group_msg(self, time: datetime.datetime, sender_id: int, sender_nick: str, group_id: int,
-                                group_name: str, msgid: str, msgcontent: MessageContent, summary: str,
-                                is_anonymous: bool = False,
-                                reply: RepliedMessageContent = None):
+    async def deliver_group_msg(self, ctx: GroupMessageContext):
         """
         Call this func to deliver a group message event to bot payload
-
-        :param time: time of message
-        :param sender_id: user id
-        :param sender_nick: user nickname in the channel
-        :param group_id: group id
-        :param group_name: group name
-        :param msgid: msg id
-        :param msgcontent: parsed msg content object
-        :param summary: summary of message, used to generate reply
-        :param is_anonymous: is sender anonymous
-        :param reply: parsed reply info object
         """
         msg: ReceivedMessage = ReceivedGroupMessage(self.__bot._contacts)
-        msg._time = time
-        msg._msgID = msgid
-        msg._msgContent = msgcontent
-        msg._summary = summary
-        msg._reply = RepliedMessage(self.__bot.get_contacts(), reply, msg)
-        if is_anonymous:
-            msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
-            msg._sender = GroupAnonymousMember(self.__bot.get_contacts(), sender_id, '',
-                                               group_id)  # TODO: temporarily use empty nick
+        msg._time = ctx.time
+        msg._msgID = ctx.msgid
+        msg._msgContent = ctx.msgcontent
+        msg._summary = ctx.summary
+        if ctx.reply is not None:
+            msg._reply = RepliedMessage(ctx.reply, msg)
+        if ctx.is_anonymous:
+            msg._channel = await self.__bot.get_contacts().get_group(ctx.group_id, ctx.group_name)
+            msg._sender = GroupAnonymousMember(self.__bot.get_contacts(), ctx.sender_id, '',
+                                               ctx.group_id)  # TODO: temporarily use empty nick
         else:
-            msg._channel = await self.__bot.get_contacts().get_group(group_id, group_name)
-            msg._sender = await msg._channel.get_member(sender_id, sender_nick)
+            msg._channel = await self.__bot.get_contacts().get_group(ctx.group_id, ctx.group_name)
+            msg._sender = await msg._channel.get_member(ctx.sender_id, ctx.sender_nick)
 
         for wait_item in self.__bot.get_contacts()._wait_for_list['groupmsg']:
-            if wait_item['channel_id'] == group_id and wait_item['payload'] is None:
+            if wait_item['channel_id'] == ctx.group_id and wait_item['payload'] is None:
                 wait_item['payload'] = msg
                 wait_item['event'].set()
 
@@ -120,7 +95,6 @@ class BotWrapper:
 
     async def deliver_private_revoke(self, time: datetime.datetime, revoker_id: int, channel: int,
                                      is_friend: bool, msgid: str):
-        # TODO: avoid force fetching those lists
         """
         Call this func to deliver a private revoke event to bot payload
 
@@ -430,6 +404,18 @@ class ProtocolWrapper(ABC):
 
         :param id: packed msgid
         :return: context-free message obj
+        """
+        pass
+
+    @abstractmethod
+    async def query_msg_by_id(self, channel_type: Channel.ChannelType, channel_id: int, msgid: str) -> Union[PrivateMessageContext, GroupMessageContext]:
+        """
+        Override this function to implement message querying by msgID
+
+        :param channel_type: type of channel
+        :param channel_id: where the message belongs to
+        :param msgid: msg ID
+        :return: message context
         """
         pass
 

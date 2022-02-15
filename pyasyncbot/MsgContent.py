@@ -108,6 +108,9 @@ class ImageSegment(MessageSegment):
         ret._url = url
         return ret
 
+    def get_url(self) -> str:
+        return self._url
+
     def __str__(self):
         return '[IMAGE:...]'
 
@@ -261,14 +264,31 @@ class ApplicationSegment(MessageSegment):
 class MessageContent:
     """
     Context-free message container
+
+    Accept text message as constructor parameter to quickly create a pure text message
     """
     _msgs: List[MessageSegment]
 
-    def __init__(self):
+    def __init__(self, text: str = None):
         self._msgs = []
+        if text is not None:
+            self._msgs.append(TextSegment.from_text(text))
 
-    def append_segment(self, seg: MessageSegment):
-        self._msgs.append(seg)
+    def append_segment(self, seg: typing.Union[MessageSegment, str]):
+        """
+        Append a new message segment to the content tail.
+
+        Allow directly pass in a string to create a text segment
+
+        :param seg: message segment
+        """
+        if isinstance(seg, MessageSegment):
+            self._msgs.append(seg)
+        else:
+            self._msgs.append(TextSegment.from_text(seg))
+
+    def get_segments(self):
+        return self._msgs
 
     def __str__(self):
         result = ""
