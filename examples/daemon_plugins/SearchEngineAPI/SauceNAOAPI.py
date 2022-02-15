@@ -87,6 +87,7 @@ class SauceNAOVideoInformation:
     episode: int
     time: str
     thumbnail_url: str
+    urls: typing.List[str]
 
 
 class ConnectionException(Exception):
@@ -158,7 +159,7 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                             pick_result_idx = i
                             picked_source = result_source
                 continue
-            elif similarity > 75.0:
+            elif similarity > 70.0:
                 # select from best similarity
                 if similarity > picked_similarity:
                     picked_similarity = similarity
@@ -197,6 +198,15 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 topic=topic,
                 characters=characters,
                 title=None
+            )
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['Anime']:
+            return SauceNAOVideoInformation(
+                thumbnail_url=result['header']['thumbnail'],
+                type='Anime',
+                name=result['data']['source'],
+                episode=int(result['data']['part']),
+                time=result['data']['est_time'],
+                urls=result['data']['ext_urls']
             )
         else:
             print('unprocessed result:', file=sys.stderr)

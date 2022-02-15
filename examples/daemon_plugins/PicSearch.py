@@ -7,7 +7,7 @@
 import traceback, sys
 from loguru import logger
 
-from SearchEngineAPI.SauceNAOAPI import query_pic_saucenao_by_url, SauceNAOPictureInformation, LowSimilarityException
+from SearchEngineAPI.SauceNAOAPI import query_pic_saucenao_by_url, SauceNAOPictureInformation, SauceNAOVideoInformation, LowSimilarityException
 from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage
 from pyasyncbot.MsgContent import ImageSegment, MessageContent
 
@@ -42,6 +42,19 @@ async def on_group_message(msg: ReceivedGroupMessage):
                 content.append_segment(text_msg)
                 await msg.get_channel().send_msg(content)
                 return
+            elif isinstance(search_result, SauceNAOVideoInformation):
+                content = MessageContent()
+                content.append_segment(ImageSegment.from_url(search_result.thumbnail_url))
+                text_msg = '类型：' + search_result.type
+                text_msg += '\n名称：' + search_result.name
+                text_msg += '\n剧集：' + str(search_result.episode)
+                text_msg += '\n出现时刻：' + search_result.time
+                if len(search_result.urls) > 0:
+                    text_msg += '\n相关链接：' + search_result.urls[0]
+                content.append_segment(text_msg)
+                await msg.get_channel().send_msg(content)
+                return
+
         except LowSimilarityException:
             await msg.quoted_reply(MessageContent('未找到或相似度过低'))
             return
