@@ -261,7 +261,7 @@ class MyBotProtocol(Protocol):
                     ))
                 return ret
             else:
-                raise Exception('remote returned status ' + data['status']['code'] + 'on /mesg/parseForwardedMsg')
+                raise Exception('remote returned status ' + data['status']['code'] + ' on /mesg/parseForwardedMsg')
         raise Exception('unexpected result from /mesg/parseForwardedMsg')
 
     async def query_msg_by_id(self, channel_type: Channel.ChannelType, channel_id: int, msgid: str) -> Union[PrivateMessageContext, GroupMessageContext]:
@@ -307,7 +307,7 @@ class MyBotProtocol(Protocol):
                         reply=reply
                     )
             else:
-                raise Exception('remote returned status ' + data['status']['code'] + 'on /mesg/queryMsg')
+                raise Exception('remote returned status ' + str(data['status']['code']) + ' on /mesg/queryMsg')
         raise Exception('unexpected result from /mesg/queryMsg')
 
     async def get_friend_list(self) -> typing.Dict[int, str]:
@@ -320,7 +320,7 @@ class MyBotProtocol(Protocol):
                     ret[friend['id']] = friend['nickname']
                 return ret
             else:
-                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getFriendList')
+                raise Exception('remote returned status ' + str(data['status']['code']) + ' on /user/getFriendList')
         raise Exception('unexpected result from /user/getFriendList')
 
     async def get_group_list(self) -> typing.Dict[int, str]:
@@ -333,7 +333,7 @@ class MyBotProtocol(Protocol):
                     ret[group['id']] = group['name']
                 return ret
             else:
-                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getGroupList')
+                raise Exception('remote returned status ' + str(data['status']['code']) + ' on /user/getGroupList')
         raise Exception('unexpected result from /user/getGroupList')
 
     async def get_group_members(self, id: int) -> typing.Dict[int, str]:
@@ -349,7 +349,7 @@ class MyBotProtocol(Protocol):
                         ret[member['id']] = member['alias']
                 return ret
             else:
-                raise Exception('remote returned status ' + data['status']['code'] + 'on /user/getGroupList')
+                raise Exception('remote returned status ' + str(data['status']['code']) + ' on /user/getGroupList')
         raise Exception('unexpected result from /user/getGroupList')
 
     async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None, reply: RepliedMessageContent = None) -> str:
