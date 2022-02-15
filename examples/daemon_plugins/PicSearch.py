@@ -37,6 +37,8 @@ async def on_group_message(msg: ReceivedGroupMessage):
                     text_msg += '\n题材：' + search_result.topic
                 if search_result.characters is not None:
                     text_msg += '\n相关角色：' + search_result.characters
+                if len(search_result.extra_urls) > 0:
+                    text_msg += '\n其它链接：' + search_result.extra_urls[0]
                 content.append_segment(text_msg)
                 await msg.get_channel().send_msg(content)
                 return

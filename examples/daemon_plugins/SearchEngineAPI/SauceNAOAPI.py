@@ -131,10 +131,7 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
             elif 'long_remaining' in response['header'] and response['header']['long_remaining'] == 0:
                 raise RateLimitException('Long rate limit reached')
             else:
-                raise UnexpectedAPIResponseException('API status is {val} for {msg}'.format(
-                    val=response['header']['status'],
-                    msg=response['header']['message']
-                ))
+                raise UnexpectedAPIResponseException(response)
 
         # pick the one result with the acceptable similarity, and the preferred source
         pick_result_idx = -1
@@ -185,14 +182,20 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 title=result['data']['title']
             )
         elif SauceNAODBs[str(result['header']['index_id'])] in ['danbooru', 'yande.re']:
+            topic = None
+            characters = None
+            if result['data']['material'] != '':
+                topic = result['data']['material']
+            if result['data']['characters'] != '':
+                characters = result['data']['characters']
             return SauceNAOPictureInformation(
                 site=SauceNAODBs[str(result['header']['index_id'])],
                 url=result['data']['source'],
                 extra_urls=result['data']['ext_urls'],
                 author=result['data']['creator'],
                 thumbnail_url=result['header']['thumbnail'],
-                topic=result['data']['material'],
-                characters=result['data']['characters'],
+                topic=topic,
+                characters=characters,
                 title=None
             )
         else:
