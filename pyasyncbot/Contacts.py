@@ -388,8 +388,9 @@ class Contacts:
     def __init__(self, protocol: ProtocolWrapper):
         self._proto_wrapper: ProtocolWrapper = protocol
         # lazy init of dicts
-        self._me: Me = None
         # one mutex for both dicts
+        self._me: Me = None
+        self._me_lock: asyncio.Lock = asyncio.Lock()
         self._friends: Dict[int, Friend] = None
         self._friends_lock: asyncio.Lock = asyncio.Lock()
         self._groups: Dict[int, Group] = None
@@ -411,9 +412,10 @@ class Contacts:
 
         :return: Me
         """
-        if self._me is None:
-            pass
-        return self._me
+        async with self._me_lock:
+            if self._me is None:
+                pass
+            return self._me
 
     async def get_friend(self, id: int, nick: str = None) -> Union[Friend, None]:
         """

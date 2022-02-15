@@ -348,6 +348,14 @@ class ProtocolWrapper(ABC):
     """
 
     @abstractmethod
+    async def get_bot_basic_info(self) -> typing.Tuple[int, str]:
+        """
+        Override this function to provide basic bot information
+
+        :return: (id, nickname)
+        """
+
+    @abstractmethod
     async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None,
                                    reply: RepliedMessageContent = None) -> str:
         """

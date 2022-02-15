@@ -246,6 +246,16 @@ class MyBotProtocol(Protocol):
 
     # below are abstract interfaces from protocol wrapper
 
+    async def get_bot_basic_info(self) -> typing.Tuple[int, str]:
+        resp = await self._http_hdl.get('/user/basicInfo')
+        if 'application/json' in resp.content_type:
+            data = ujson.loads(await resp.text())
+            if data['status']['code'] == 0:
+                return data['basic']['id'], data['basic']['nick']
+            else:
+                raise Exception('remote returned status ' + data['status']['code'] + ' on /user/basicInfo')
+        raise Exception('unexpected result from /user/basicInfo')
+
     async def query_packed_msg(self, id: str) -> typing.List[GroupedSegment.ContextFreeMessage]:
         resp = await self._http_hdl.get('/mesg/parseForwardedMsg', params={'id': id})
         if 'application/json' in resp.content_type:
