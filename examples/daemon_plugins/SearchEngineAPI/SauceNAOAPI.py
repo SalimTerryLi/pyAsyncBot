@@ -107,7 +107,7 @@ class LowSimilarityException(Exception):
 
 async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -> typing.Union[
     SauceNAOPictureInformation, SauceNAOVideoInformation, None]:
-    async with httpx.AsyncClient(proxies=proxy) as client:
+    async with httpx.AsyncClient(proxies=proxy, timeout=15) as client:
         response = None
         try:
             response = await client.get('https://saucenao.com/search.php', params={
