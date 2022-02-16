@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 
 from setuptools import find_packages, setup
+from pathlib import Path
+
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='pyAsyncBot',
     packages=find_packages(include=['pyasyncbot', 'pyasyncbot.*']),
     version='0.4.0',
     description='An async chat bot client framework',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author='SalimTerryLi',
     license='MIT',
     install_requires=[
