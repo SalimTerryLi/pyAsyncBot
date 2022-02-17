@@ -7,7 +7,8 @@
 import traceback, sys
 from loguru import logger
 
-from SearchEngineAPI.SauceNAOAPI import query_pic_saucenao_by_url, SauceNAOPictureInformation, SauceNAOVideoInformation, LowSimilarityException
+from SearchEngineAPI.SauceNAOAPI import query_pic_saucenao_by_url, SauceNAOPictureInformation, SauceNAOVideoInformation, \
+    LowSimilarityException, RateLimitException
 from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage
 from pyasyncbot.MsgContent import ImageSegment, MessageContent
 
@@ -61,6 +62,9 @@ async def on_group_message(msg: ReceivedGroupMessage):
 
         except LowSimilarityException:
             await msg.quoted_reply(MessageContent('未找到或相似度过低'))
+            return
+        except RateLimitException:
+            await msg.quoted_reply(MessageContent('调用频率过高'))
             return
         except Exception:
             traceback.print_exc(file=sys.stderr)

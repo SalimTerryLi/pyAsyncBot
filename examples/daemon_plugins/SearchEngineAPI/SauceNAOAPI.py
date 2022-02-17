@@ -126,13 +126,10 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
         except Exception:
             raise UnexpectedAPIResponseException()
         # parse header
+        if response['header']['status'] == -2:
+            raise RateLimitException()
         if response['header']['status'] != 0:
-            if 'short_remaining' in response['header'] and response['header']['short_remaining'] == 0:
-                raise RateLimitException('Short rate limit reached')
-            elif 'long_remaining' in response['header'] and response['header']['long_remaining'] == 0:
-                raise RateLimitException('Long rate limit reached')
-            else:
-                raise UnexpectedAPIResponseException(response)
+            raise UnexpectedAPIResponseException(str(response))
 
         # pick the one result with the acceptable similarity, and the preferred source
         pick_result_idx = -1
