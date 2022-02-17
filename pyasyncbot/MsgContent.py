@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+import aiohttp
+
 if TYPE_CHECKING:
     from .Bot import Bot
 
@@ -60,13 +63,20 @@ class TextSegment(MessageSegment):
 class ImageSegment(MessageSegment):
     """
     Part of a message where there is an image
+
+    URL will always be available when the message content is received
+
+    Preferred sending priority:
+      1. image id (not implemented)
+      2. raw buffer as base64
+      3. url
     """
     _base64: str
     _url: str
 
     def __init__(self):
-        self._base64 = ''
-        self._url = ''
+        self._base64 = None
+        self._url = None
 
     @classmethod
     def from_base64(cls, base64: str):
@@ -109,7 +119,56 @@ class ImageSegment(MessageSegment):
         return ret
 
     def get_url(self) -> str:
+        """
+        Get the url of the image. Always available on received message.
+
+        :return: None if not available
+        """
         return self._url
+
+    async def fetch_from_url(self, proxy: str = None) -> bool:
+        """
+        Fetch the image data from url if the segment does not contain raw data
+
+        :return: True if success
+        """
+        if self._url is None:
+            raise Exception('URL not available')
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self._url, proxy=proxy, allow_redirects=True) as resp:
+                if 'image' in resp.headers['Content-Type']:
+                    self._base64 = base64.b64encode(await resp.read()).decode('ascii')
+                    return True
+                else:
+                    return False
+
+    def is_raw_data_available(self) -> bool:
+        return self._base64 is not None
+
+    def get_base64(self) -> str:
+        """
+        Try to get the base64 of the image.
+
+        If the image is provided by url then the raw data will be fetched at first
+
+        :return: base64 string
+        """
+        if self._base64 is not None:
+            return self._base64
+        else:
+            raise Exception('Raw image data not available')
+
+    def get_raw(self) -> bytes:
+        """
+        Get the image data as bytes buffer
+
+        :return: raw image
+        """
+        if self._base64 is not None:
+            return base64.b64decode(self._base64)
+        else:
+            raise Exception('Raw image data not available')
 
     def __str__(self):
         return '[IMAGE:...]'

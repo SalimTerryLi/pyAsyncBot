@@ -27,7 +27,9 @@ async def on_group_message(msg: ReceivedGroupMessage):
                                                             HTTP_PROXY)
             if isinstance(search_result, SauceNAOPictureInformation):
                 content = MessageContent()
-                content.append_segment(ImageSegment.from_url(search_result.thumbnail_url))
+                thumb = ImageSegment.from_url(search_result.thumbnail_url)
+                await thumb.fetch_from_url(HTTP_PROXY)
+                content.append_segment(thumb)
                 text_msg = '来源：' + search_result.site
                 text_msg += '\n作者：' + search_result.author
                 if search_result.title is not None:
@@ -44,7 +46,9 @@ async def on_group_message(msg: ReceivedGroupMessage):
                 return
             elif isinstance(search_result, SauceNAOVideoInformation):
                 content = MessageContent()
-                content.append_segment(ImageSegment.from_url(search_result.thumbnail_url))
+                thumb = ImageSegment.from_url(search_result.thumbnail_url)
+                await thumb.fetch_from_url(HTTP_PROXY)
+                content.append_segment(thumb)
                 text_msg = '类型：' + search_result.type
                 text_msg += '\n名称：' + search_result.name
                 text_msg += '\n剧集：' + str(search_result.episode)

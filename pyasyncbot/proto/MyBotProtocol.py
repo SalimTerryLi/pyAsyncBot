@@ -141,10 +141,10 @@ class MyBotProtocol(Protocol):
                 })
             elif isinstance(msg, ImageSegment):
                 seg = {'type': 'image'}
-                if msg._url != '':
-                    seg['url'] = msg._url
-                else:
+                if msg._base64 is not None:
                     seg['base64'] = msg._base64
+                else:
+                    seg['url'] = msg._url
                 ret.append(seg)
             elif isinstance(msg, EmojiSegment):
                 ret.append({
