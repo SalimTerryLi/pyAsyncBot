@@ -119,10 +119,10 @@ class NewFriendRequest(BotEvent):
         """
         return self._ref
 
-    async def accept_request(self) -> bool:
+    async def accept(self) -> bool:
         return await self._contacts._proto_wrapper.deal_friend_request(self._id, self._evid, True)
 
-    async def reject_request(self) -> bool:
+    async def reject(self) -> bool:
         return await self._contacts._proto_wrapper.deal_friend_request(self._id, self._evid, False)
 
 
@@ -226,10 +226,10 @@ class NewGroupInvitation(BotEvent):
         return self._inviter
 
     async def accept(self) -> bool:
-        return await self._contacts._proto_wrapper.deal_friend_request(self._inviter, self._evid, True)
+        return await self._contacts._proto_wrapper.deal_group_invitation(self._inviter, self._evid, True)
 
     async def reject(self) -> bool:
-        return await self._contacts._proto_wrapper.deal_friend_request(self._inviter, self._evid, False)
+        return await self._contacts._proto_wrapper.deal_group_invitation(self._inviter, self._evid, False)
 
 
 # below are group management events
