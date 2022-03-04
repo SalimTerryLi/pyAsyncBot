@@ -69,11 +69,24 @@ def parse(html: str):
                                 retlist.append(ASCII2DResultSimpleUrl(pic_url, src_site, text_seg, link))
                         else:
                             # ASCII2DResultTitleAuthorSrc
-                            src_site = node.xpath('./small/text()')[0]
+                            src_site = node.xpath('./small/text()')
+                            # possibly bug from lxml side: text() return nothing if contains '@'
+                            if len(src_site) > 0:
+                                src_site = src_site[0]
+                            else:
+                                src_site = ''
                             link_nodes = node.xpath('./a')
-                            title = link_nodes[0].xpath('text()')[0]
+                            title = link_nodes[0].xpath('text()')
+                            if len(title) > 0:
+                                title = title[0]
+                            else:
+                                title = ''
                             link = link_nodes[0].xpath('@href')[0]
-                            author = link_nodes[1].xpath('text()')[0]
+                            author = link_nodes[1].xpath('text()')
+                            if len(author) > 0:
+                                author = author[0]
+                            else:
+                                author = ''
                             author_link = link_nodes[1].xpath('@href')[0]
                             retlist.append(
                                 ASCII2DResultTitleAuthorSrc(pic_url, src_site, title, link, author, author_link))
