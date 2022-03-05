@@ -82,12 +82,16 @@ def parse(html: str):
                             else:
                                 title = ''
                             link = link_nodes[0].xpath('@href')[0]
-                            author = link_nodes[1].xpath('text()')
-                            if len(author) > 0:
-                                author = author[0]
+                            if len(list(link_nodes)) > 1:
+                                author = link_nodes[1].xpath('text()')
+                                if len(author) > 0:
+                                    author = author[0]
+                                else:
+                                    author = ''
+                                author_link = link_nodes[1].xpath('@href')[0]
                             else:
                                 author = ''
-                            author_link = link_nodes[1].xpath('@href')[0]
+                                author_link = ''
                             retlist.append(
                                 ASCII2DResultTitleAuthorSrc(pic_url, src_site, title, link, author, author_link))
                     elif node.tag == 'strong':

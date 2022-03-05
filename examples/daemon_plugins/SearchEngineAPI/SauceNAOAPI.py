@@ -179,7 +179,7 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 characters=None,
                 title=result['data']['title']
             )
-        elif SauceNAODBs[str(result['header']['index_id'])] in ['danbooru', 'yande.re']:
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['danbooru', 'yande.re', 'konachan']:
             topic = None
             characters = None
             if result['data']['material'] != '':
