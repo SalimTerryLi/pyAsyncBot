@@ -42,7 +42,7 @@ class PrivateMessageContext:
     is_friend: bool = True
     from_channel: int = None,
     from_channel_name: str = None
-    reply: RepliedMessageContent = None
+    reply: RepliedMessageContext = None
 
 
 @dataclasses.dataclass
@@ -70,7 +70,7 @@ class GroupMessageContext:
     msgcontent: MessageContent
     summary: str
     is_anonymous: bool = False
-    reply: RepliedMessageContent = None
+    reply: RepliedMessageContext = None
 
 
 class RepliedMessage:
@@ -78,7 +78,7 @@ class RepliedMessage:
     A small structure which contains information of a replied reference message.
     """
 
-    def __init__(self, content: RepliedMessageContent, ctx: ReceivedMessage):
+    def __init__(self, content: RepliedMessageContext, ctx: ReceivedMessage):
         self._content = content
         self._ctx = ctx
 
@@ -249,7 +249,7 @@ class ReceivedMessage:
         :param content: message content
         :return: msgID of reply msg or None if failed
         """
-        reply_content = RepliedMessageContent(
+        reply_content = RepliedMessageContext(
             to_msgid=self._msgID,
             to_uid=self._sender.get_id(),
             text=self._summary,
@@ -370,3 +370,19 @@ class RevokedMessage:
         :return: message object, None if failed to get
         """
         pass
+
+
+@dataclasses.dataclass
+class RepliedMessageContext:
+    to_uid: int
+    time: datetime.datetime
+    text: str
+    to_msgid: str
+
+    def __str__(self):
+        return str({
+            'to': self.to_uid,
+            'msgid': self.to_msgid,
+            'time': str(self.time),
+            'text': self.text
+        })

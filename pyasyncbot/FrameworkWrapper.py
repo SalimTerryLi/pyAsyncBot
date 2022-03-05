@@ -16,9 +16,9 @@ from .MsgContent import GroupedSegment
 from .Contacts import GroupAnonymousMember
 from .Event import *
 from .Contacts import Channel
-from .Message import ReceivedMessage, RepliedMessage, RevokedMessage, \
+from .Message import ReceivedMessage, RepliedMessage, RevokedMessage, RepliedMessageContext, \
     ReceivedPrivateMessage, ReceivedGroupMessage, PrivateMessageContext, GroupMessageContext
-from .MsgContent import MessageContent, RepliedMessageContent
+from .MsgContent import MessageContent
 
 
 class BotWrapper:
@@ -358,7 +358,7 @@ class ProtocolWrapper(ABC):
 
     @abstractmethod
     async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None,
-                                   reply: RepliedMessageContent = None) -> str:
+                                   reply: RepliedMessageContext = None) -> str:
         """
         Override this function to implement private message sending
 
@@ -372,7 +372,7 @@ class ProtocolWrapper(ABC):
 
     @abstractmethod
     async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False,
-                                 reply: RepliedMessageContent = None) -> str:
+                                 reply: RepliedMessageContext = None) -> str:
         """
         Override this function to implement group message sending
 

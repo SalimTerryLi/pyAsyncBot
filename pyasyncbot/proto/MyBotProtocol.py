@@ -65,7 +65,7 @@ class MyBotProtocol(Protocol):
             logger.error(e)
 
     async def parse_msg(self, msgdata: dict):
-        reply: typing.Union[RepliedMessageContent, None] = None
+        reply: typing.Union[RepliedMessageContext, None] = None
         if 'reply' in msgdata:
             reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
         if msgdata['type'] == 'private':
@@ -122,8 +122,8 @@ class MyBotProtocol(Protocol):
         return ret
 
     @staticmethod
-    def parse_reply_content(reply_msg: dict) -> RepliedMessageContent:
-        ret = RepliedMessageContent(
+    def parse_reply_content(reply_msg: dict) -> RepliedMessageContext:
+        ret = RepliedMessageContext(
             to_uid=reply_msg['to'],
             time=datetime.datetime.fromtimestamp(reply_msg['time']),
             text=reply_msg['summary'],
@@ -172,7 +172,7 @@ class MyBotProtocol(Protocol):
         return ret
 
     @staticmethod
-    def generate_reply_content(replied_content: RepliedMessageContent) -> dict:
+    def generate_reply_content(replied_content: RepliedMessageContext) -> dict:
         if replied_content is None:
             return None
         return {
@@ -286,7 +286,7 @@ class MyBotProtocol(Protocol):
             data = ujson.loads(await resp.text())
             if data['status']['code'] == 0:
                 msgdata = data['data']
-                reply: typing.Union[RepliedMessageContent, None] = None
+                reply: typing.Union[RepliedMessageContext, None] = None
                 if 'reply' in msgdata:
                     reply = MyBotProtocol.parse_reply_content(msgdata['reply'])
                 if msgdata['type'] == 'private':
@@ -363,7 +363,7 @@ class MyBotProtocol(Protocol):
                 raise Exception('remote returned status ' + str(data['status']['code']) + ' on /user/getGroupList')
         raise Exception('unexpected result from /user/getGroupList')
 
-    async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None, reply: RepliedMessageContent = None) -> str:
+    async def serv_private_message(self, id: int, msg_content: MessageContent, *, from_channel: int = None, reply: RepliedMessageContext = None) -> str:
         post_data = {
             'dest': id,
             'from': from_channel,
@@ -381,7 +381,7 @@ class MyBotProtocol(Protocol):
         else:
             return None
 
-    async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False, reply: RepliedMessageContent = None) -> str:
+    async def serv_group_message(self, id: int, msg_content: MessageContent, *, as_anonymous: bool = False, reply: RepliedMessageContext = None) -> str:
         post_data = {
             'dest': id,
             'msgContent': self.generate_message_content(msg_content),
