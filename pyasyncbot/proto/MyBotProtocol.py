@@ -10,6 +10,7 @@ import ujson
 
 from ..commu.http import HTTPClientAPI
 from ..Message import *
+from ..MsgContent import *
 from .Protocol import Protocol, BotWrapper
 from ..Event import *
 from ..FrameworkWrapper import PrivateMessageContext, GroupMessageContext, Channel
@@ -137,34 +138,34 @@ class MyBotProtocol(Protocol):
             if isinstance(msg, TextSegment):
                 ret.append({
                     'type': 'text',
-                    'text': msg._text
+                    'text': msg.get_text()
                 })
             elif isinstance(msg, ImageSegment):
                 seg = {'type': 'image'}
-                if msg._base64 is not None:
-                    seg['base64'] = msg._base64
+                if msg.is_raw_data_available():
+                    seg['base64'] = msg.get_base64()
                 else:
-                    seg['url'] = msg._url
+                    seg['url'] = msg.get_url()
                 ret.append(seg)
             elif isinstance(msg, EmojiSegment):
                 ret.append({
                     'type': 'emoji',
-                    'id': msg._id
+                    'id': msg.get_id()
                 })
             elif isinstance(msg, MentionSegment):
                 ret.append({
                     'type': 'mention',
-                    'target': msg._target
+                    'target': msg.get_target_id()
                 })
             elif isinstance(msg, GroupedSegment):
                 ret.append({
                     'type': 'forwarded',
-                    'id': msg._grouped_msg_id
+                    'id': msg.get_id()
                 })
             elif isinstance(msg, ApplicationSegment):
                 ret.append({
-                    'type': msg._type,
-                    'data': msg._data
+                    'type': msg.get_type(),
+                    'data': msg.get_data()
                 })
             else:
                 logger.error('unsupported msg segment: ' + str(type(msg)))

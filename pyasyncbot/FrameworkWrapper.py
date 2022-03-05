@@ -16,8 +16,9 @@ from .MsgContent import GroupedSegment
 from .Contacts import GroupAnonymousMember
 from .Event import *
 from .Contacts import Channel
-from .Message import ReceivedMessage, RepliedMessage, MessageContent, RepliedMessageContent, RevokedMessage, \
+from .Message import ReceivedMessage, RepliedMessage, RevokedMessage, \
     ReceivedPrivateMessage, ReceivedGroupMessage, PrivateMessageContext, GroupMessageContext
+from .MsgContent import MessageContent, RepliedMessageContent
 
 
 class BotWrapper:

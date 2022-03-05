@@ -4,9 +4,7 @@
 插件模板
 """
 
-from pyasyncbot import Bot
 from pyasyncbot.Event import BotEvent, NewFriendRequest, NewGroupInvitation, GroupMemberJoinRequest
-from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage, RevokedMessage
 
 from loguru import logger
 

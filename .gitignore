@@ -11,3 +11,5 @@ __pycache__
 /*.egg-info
 /build
 /dist
+
+pending_commit.msg

@@ -7,6 +7,8 @@ import aiohttp
 if TYPE_CHECKING:
     from .Bot import Bot
 
+from .Contacts import User, Group, GroupMember
+
 import base64
 import datetime
 import typing
@@ -71,23 +73,35 @@ class ImageSegment(MessageSegment):
       2. raw buffer as base64
       3. url
     """
-    _base64: str
+    _buffer: bytes
     _url: str
 
     def __init__(self):
-        self._base64 = None
+        self._buffer = None
         self._url = None
 
     @classmethod
-    def from_base64(cls, base64: str):
+    def from_base64(cls, b64: str):
         """
         Create an image segment from base64 encoded string buffer
 
-        :param base64: image file content in base64 encoding
+        :param b64: image file content in base64 encoding
         :return: an image segment
         """
         ret = ImageSegment()
-        ret._base64 = base64
+        ret._buffer = base64.b64decode(b64)
+        return ret
+
+    @classmethod
+    def from_buffer(cls, buffer: bytes):
+        """
+        Create an image segment from raw binary buffer
+
+        :param buffer: image file content in base64 encoding
+        :return: an image segment
+        """
+        ret = ImageSegment()
+        ret._buffer = buffer
         return ret
 
     @classmethod
@@ -101,7 +115,7 @@ class ImageSegment(MessageSegment):
         try:
             ret = ImageSegment()
             with aiofiles.open(filename, mode='rb') as f:
-                ret._base64 = base64.b64encode(await f.read()).decode('ascii')
+                ret._buffer = await f.read()
             return ret
         except Exception as e:
             raise e
@@ -138,13 +152,13 @@ class ImageSegment(MessageSegment):
         async with aiohttp.ClientSession() as session:
             async with session.get(self._url, proxy=proxy, allow_redirects=True) as resp:
                 if 'image' in resp.headers['Content-Type']:
-                    self._base64 = base64.b64encode(await resp.read()).decode('ascii')
+                    self._buffer = await resp.read()
                     return True
                 else:
                     return False
 
     def is_raw_data_available(self) -> bool:
-        return self._base64 is not None
+        return self._buffer is not None
 
     def get_base64(self) -> str:
         """
@@ -154,8 +168,8 @@ class ImageSegment(MessageSegment):
 
         :return: base64 string
         """
-        if self._base64 is not None:
-            return self._base64
+        if self._buffer is not None:
+            return base64.b64encode(self._buffer).decode('ascii')
         else:
             raise Exception('Raw image data not available')
 
@@ -165,8 +179,8 @@ class ImageSegment(MessageSegment):
 
         :return: raw image
         """
-        if self._base64 is not None:
-            return base64.b64decode(self._base64)
+        if self._buffer is not None:
+            return self._buffer
         else:
             raise Exception('Raw image data not available')
 
@@ -199,6 +213,9 @@ class EmojiSegment(MessageSegment):
         ret._replacement = hint
         return ret
 
+    def get_id(self):
+        return self._id
+
     def __str__(self):
         return '[EMOJI:{text}]'.format(text=self._replacement)
 
@@ -227,6 +244,12 @@ class MentionSegment(MessageSegment):
         ret._target = uid
         ret._replacement = display_text
         return ret
+
+    def get_target_id(self):
+        return self._target
+
+    async def get_target(self, group: Group) -> typing.Union[GroupMember, None]:
+        return await group.get_member(self._target)
 
     def __str__(self):
         return self._replacement
@@ -278,6 +301,9 @@ class GroupedSegment(MessageSegment):
         """
         pass
 
+    def get_id(self) -> str:
+        return self._grouped_msg_id
+
     async def get_contents(self, bot: Bot) -> typing.List[ContextFreeMessage]:
         """
         Fetch the actual contents of this grouped message
@@ -324,6 +350,8 @@ class MessageContent:
     """
     Context-free message container
 
+    Provides a set of helper functions to quickly make up a new message
+
     Accept text message as constructor parameter to quickly create a pure text message
     """
     _msgs: List[MessageSegment]
@@ -348,6 +376,60 @@ class MessageContent:
 
     def get_segments(self):
         return self._msgs
+
+    def add_text(self, text: str) -> MessageContent:
+        """
+        Message Builder function for text content
+
+        :param text: text to be appended
+        :return: MessageContent
+        """
+        self.append_segment(TextSegment.from_text(text))
+        return self
+
+    def add_image(self, url: str = None, b64: str = None, buffer: bytes = None) -> MessageContent:
+        """
+        Message Builder function for image content
+
+        Only one of those parameters is required. Will take the first non-None one
+
+        DOES NOT support pre-fetching of image data
+
+        :param url: url of the image to be appended
+        :param b64: base64 of the image
+        :param buffer: raw bytes of the image
+        :return: MessageContent
+        """
+        if url is not None:
+            self.append_segment(ImageSegment.from_url(url))
+        elif b64 is not None:
+            self.append_segment(ImageSegment.from_base64(b64))
+        elif buffer is not None:
+            self.append_segment(ImageSegment.from_buffer(buffer))
+        return self
+
+    def add_emoji(self, id: int) -> MessageContent:
+        """
+        Message Builder function for emoji content
+
+        :param id: emoji id to be appended
+        :return: MessageContent
+        """
+        self.append_segment(EmojiSegment.from_id(id))
+        return self
+
+    def add_mention(self, user: typing.Union[int, User]) -> MessageContent:
+        """
+        Message Builder function for mention
+
+        :param user: user to be mentioned, either User object or User ID
+        :return: MessageContent
+        """
+        if isinstance(user, User):
+            self.append_segment(MentionSegment.from_id(user.get_id()))
+        elif isinstance(user, int):
+            self.append_segment(MentionSegment.from_id(user))
+        return self
 
     def __str__(self):
         result = ""

@@ -4,13 +4,12 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .Contacts import *
+    from .MsgContent import *
 
 import datetime
 from typing import Union
 import ast
 import dataclasses
-
-from .MsgContent import *
 
 
 @dataclasses.dataclass

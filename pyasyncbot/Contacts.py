@@ -5,7 +5,8 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .Message import MessageContent, RepliedMessageContent, ReceivedMessage, ReceivedGroupMessage, ReceivedPrivateMessage
+    from .Message import MessageContent, RepliedMessageContent, ReceivedMessage, ReceivedGroupMessage, \
+        ReceivedPrivateMessage
     from .FrameworkWrapper import ProtocolWrapper
 
 

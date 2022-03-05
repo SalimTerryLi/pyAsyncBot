@@ -1,5 +1,3 @@
-init:
-	pip install -r requirements.txt
-
-test:
-	python tests/test.py
+commit:
+	git commit -F pending_commit.msg
+	echo '' > pending_commit.msg
