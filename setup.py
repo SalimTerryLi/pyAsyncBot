@@ -9,7 +9,7 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='pyAsyncBot',
     packages=find_packages(include=['pyasyncbot', 'pyasyncbot.*']),
-    version='0.5.0',
+    version='0.5.1',
     description='An async chat bot client framework',
     long_description=long_description,
     long_description_content_type='text/markdown',
