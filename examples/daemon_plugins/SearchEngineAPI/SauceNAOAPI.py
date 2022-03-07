@@ -156,7 +156,7 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                             pick_result_idx = i
                             picked_source = result_source
                 continue
-            elif similarity > 70.0:
+            elif similarity > 75:
                 # select from best similarity
                 if similarity > picked_similarity:
                     picked_similarity = similarity
@@ -204,6 +204,17 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 episode=int(result['data']['part']),
                 time=result['data']['est_time'],
                 urls=result['data']['ext_urls']
+            )
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['ArtStation']:
+            return SauceNAOPictureInformation(
+                site='ArtStation',
+                url=result['data']['ext_urls'][0],
+                extra_urls=[],
+                author=result['data']['author_name'],
+                thumbnail_url=result['header']['thumbnail'],
+                topic=result['data']['as_project'],
+                characters=None,
+                title=result['data']['title']
             )
         else:
             print('unprocessed result:', file=sys.stderr)
