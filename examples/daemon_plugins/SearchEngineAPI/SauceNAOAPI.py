@@ -90,6 +90,16 @@ class SauceNAOVideoInformation:
     urls: typing.List[str]
 
 
+@dataclass
+class SauceNAOMangaInformation:
+    thumbnail_url: str
+    source: str
+    name: str
+    extra_name: str
+    creator: typing.List[str]
+    translator: str
+
+
 class ConnectionException(Exception):
     pass
 
@@ -107,7 +117,7 @@ class LowSimilarityException(Exception):
 
 
 async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -> typing.Union[
-    SauceNAOPictureInformation, SauceNAOVideoInformation, None]:
+    SauceNAOPictureInformation, SauceNAOVideoInformation, SauceNAOMangaInformation, None]:
     async with httpx.AsyncClient(proxies=proxy, timeout=15) as client:
         response = None
         try:
@@ -205,16 +215,14 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 time=result['data']['est_time'],
                 urls=result['data']['ext_urls']
             )
-        elif SauceNAODBs[str(result['header']['index_id'])] in ['ArtStation']:
-            return SauceNAOPictureInformation(
-                site='ArtStation',
-                url=result['data']['ext_urls'][0],
-                extra_urls=[],
-                author=result['data']['author_name'],
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['H-Misc (ehentai)']:
+            return SauceNAOMangaInformation(
                 thumbnail_url=result['header']['thumbnail'],
-                topic=result['data']['as_project'],
-                characters=None,
-                title=result['data']['title']
+                source='e-hentai',
+                name=result['data']['jp_name'],
+                extra_name=result['data']['eng_name'].replace('&quot;', '"'),
+                creator=result['data']['creator'],
+                translator=result['data']['source'].replace('&quot;', '"'),
             )
         elif SauceNAODBs[str(result['header']['index_id'])] in ['bcy illust']:
             # not accepting those "non-wellknown" source

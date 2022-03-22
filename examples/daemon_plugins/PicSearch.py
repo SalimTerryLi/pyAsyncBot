@@ -8,7 +8,7 @@ import traceback, sys
 from loguru import logger
 
 from SearchEngineAPI.SauceNAOAPI import query_pic_saucenao_by_url, SauceNAOPictureInformation, \
-    SauceNAOVideoInformation, LowSimilarityException, RateLimitException
+    SauceNAOVideoInformation, SauceNAOMangaInformation, LowSimilarityException, RateLimitException
 from SearchEngineAPI.ASCII2D import query_pic_ascii2d_by_url, ASCII2DResultPlainText, ASCII2DResultSimpleUrl, \
     ASCII2DResultTitleAuthorSrc
 from pyasyncbot.Message import ReceivedPrivateMessage, ReceivedGroupMessage
@@ -58,6 +58,23 @@ async def on_group_message(msg: ReceivedGroupMessage):
                 text_msg += '\n出现时刻：' + search_result.time
                 if len(search_result.urls) > 0:
                     text_msg += '\n相关链接：' + search_result.urls[0]
+                content.append_segment(text_msg)
+                await msg.get_channel().send_msg(content)
+                return
+            elif isinstance(search_result, SauceNAOMangaInformation):
+                content = MessageContent()
+                thumb = ImageSegment.from_url(search_result.thumbnail_url)
+                await thumb.fetch_from_url(HTTP_PROXY)
+                content.append_segment(thumb)
+                text_msg = '来源：' + search_result.source
+                text_msg += '\n名称：' + search_result.name
+                text_msg += '\n别名：' + search_result.extra_name
+                text_msg += '\n作者：'
+                for creator in search_result.creator:
+                    text_msg += creator
+                    if search_result.creator.index(creator) != len(search_result.creator) - 1:
+                        text_msg += ', '
+                text_msg += '\n翻译：' + search_result.translator
                 content.append_segment(text_msg)
                 await msg.get_channel().send_msg(content)
                 return
