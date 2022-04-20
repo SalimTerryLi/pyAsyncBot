@@ -224,8 +224,11 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 creator=result['data']['creator'],
                 translator=result['data']['source'].replace('&quot;', '"'),
             )
-        elif SauceNAODBs[str(result['header']['index_id'])] in ['bcy illust']:
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['bcy illust', 'dA']:
             # not accepting those "non-wellknown" source
+            raise LowSimilarityException()
+        elif SauceNAODBs[str(result['header']['index_id'])] == 'Twitter':
+            # SauceNAO provides too little information for those source. Fallback to other method
             raise LowSimilarityException()
         else:
             print('unprocessed result:', file=sys.stderr)

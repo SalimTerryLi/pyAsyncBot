@@ -29,7 +29,7 @@ async def on_group_message(msg: ReceivedGroupMessage):
                                                             SAUCENAO_APIKEY,
                                                             HTTP_PROXY)
             if isinstance(search_result, SauceNAOPictureInformation):
-                content = MessageContent()
+                content = MessageContent("SauceNAO结果：")
                 thumb = ImageSegment.from_url(search_result.thumbnail_url)
                 await thumb.fetch_from_url(HTTP_PROXY)
                 content.append_segment(thumb)
@@ -84,7 +84,7 @@ async def on_group_message(msg: ReceivedGroupMessage):
             try:
                 if len(search_result := await query_pic_ascii2d_by_url(url, HTTP_PROXY)) > 0:
                     search_result = search_result[0]
-                    content = MessageContent('不精确结果：\n')
+                    content = MessageContent('ASCII2D结果：')
                     thumb = ImageSegment.from_url(search_result.thumbnail_url)
                     await thumb.fetch_from_url(HTTP_PROXY)
                     content.append_segment(thumb)
@@ -107,7 +107,7 @@ async def on_group_message(msg: ReceivedGroupMessage):
                     # 一般不会执行到这里...？
                     await msg.quoted_reply(MessageContent('未找到或相似度过低'))
             except Exception as e:
-                await msg.quoted_reply(MessageContent('不精确搜索失败'))
+                await msg.quoted_reply(MessageContent('ASCII2D搜索失败'))
                 raise e
             return
         except RateLimitException:
