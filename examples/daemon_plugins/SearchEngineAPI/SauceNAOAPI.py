@@ -215,10 +215,10 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 time=result['data']['est_time'],
                 urls=result['data']['ext_urls']
             )
-        elif SauceNAODBs[str(result['header']['index_id'])] in ['H-Misc (ehentai)']:
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['H-Misc (ehentai)', 'H-MISC (nhentai)']:
             return SauceNAOMangaInformation(
                 thumbnail_url=result['header']['thumbnail'],
-                source='e-hentai',
+                source='e-hentai/n-hentai',
                 name=result['data']['jp_name'],
                 extra_name=result['data']['eng_name'].replace('&quot;', '"'),
                 creator=result['data']['creator'],
