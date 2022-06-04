@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import typing
 import traceback
 
-# Last updated 12/21/2020, from https://saucenao.com/tools/examples/api/index_details.txt using regex:
+# Last updated 06/04/2022, from https://saucenao.com/tools/examples/api/index_details.txt using regex:
 # ^(0x[^\t]+)\t#([\d]+)\t+([\d,]+)\t+([^\n]+)
 #     '\g<2>': '\g<4>',
 SauceNAODBs = {
@@ -52,6 +52,8 @@ SauceNAODBs = {
     '40': 'FurAffinity',
     '41': 'Twitter',
     '42': 'Furry Network',
+    '43': 'Kemono',
+    '44': 'Skeb',
 }
 
 PreferredSauceNAODB = {
@@ -224,7 +226,7 @@ async def query_pic_saucenao_by_url(url: str, api_key: str, proxy: str = None) -
                 creator=result['data']['creator'],
                 translator=result['data']['source'].replace('&quot;', '"'),
             )
-        elif SauceNAODBs[str(result['header']['index_id'])] in ['bcy illust', 'dA']:
+        elif SauceNAODBs[str(result['header']['index_id'])] in ['bcy illust', 'dA', 'Skeb']:
             # not accepting those "non-wellknown" source
             raise LowSimilarityException()
         elif SauceNAODBs[str(result['header']['index_id'])] == 'Twitter':
