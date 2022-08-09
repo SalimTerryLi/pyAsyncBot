@@ -161,7 +161,8 @@ async def on_ready():
 
 
 # block and run the bot as daemon
-event_loop = asyncio.get_event_loop()
+event_loop = asyncio.new_event_loop()
+asyncio.set_event_loop(event_loop)
 
 
 async def main():
@@ -170,3 +171,4 @@ async def main():
 
 daemon_task = event_loop.create_task(main())
 event_loop.run_until_complete(daemon_task)
+event_loop.close()
