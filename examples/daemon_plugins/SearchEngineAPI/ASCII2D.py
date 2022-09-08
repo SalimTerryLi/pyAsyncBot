@@ -111,7 +111,9 @@ def parse(html: str):
 
 
 async def query_pic_ascii2d_by_url(url: str, proxy: str = None) -> List[ASCII2DResult]:
-    async with httpx.AsyncClient(proxies=proxy, timeout=15) as client:
+    async with httpx.AsyncClient(proxies=proxy, timeout=15, headers={
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:104.0) Gecko/20100101 Firefox/104.0'
+    }) as client:
         response = None
         try:
             response = await client.get('https://ascii2d.net/search/url/' + url)
