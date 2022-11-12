@@ -44,5 +44,5 @@ sync-to-github:
         - git checkout master
         - git pull --ff-only
         # shit GFW
-        - export https_proxy=http://scumaker.org:8580
+        - export https_proxy=http://internet.scumaker.org:8580
         - git push https://$GITHUB_PUSH_KEY@github.com/SalimTerryLi/pyAsyncBot.git
